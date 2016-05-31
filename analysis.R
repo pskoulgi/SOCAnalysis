@@ -1,6 +1,6 @@
 library(dplyr)
-
-setwd("F:/Workspace/MSc/Project/scratchPad/RAnalysis")
+library(tidyr)
+library(reshape2)
 
 # Read-in soil C, N data
 {
