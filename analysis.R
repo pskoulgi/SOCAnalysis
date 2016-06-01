@@ -93,6 +93,32 @@ library(reshape2)
   agParams <- left_join(litter, basArea)
   agParams <- left_join(agParams, treeDens)
   
+  # Read-in soil SIR data
+  {
+    soilSIR <- read.table("F:/Workspace/MSc/Project/soc-fragments/soilSIR.csv",
+                          as.is=T, header=T, sep=",")
+    
+    concNaOH <- 2 # in N
+    
+    avgBlanks <- soilSIR %>% group_by(SET) %>% filter(grepl("B", SAMPLE)) %>% 
+      summarise(AVG.BLANKS=mean(TITRE))
+    
+    soilSIRS1 <- soilSIR %>% filter(SET == "S1") %>% 
+      mutate(ADJ.TITRE = -TITRE+avgBlanks$AVG.BLANKS[avgBlanks$SET=="S1"])
+    soilSIRS2 <- soilSIR %>% filter(SET == "S2") %>% 
+      mutate(ADJ.TITRE = -TITRE+avgBlanks$AVG.BLANKS[avgBlanks$SET=="S2"])
+    soilSIR <- bind_rows(soilSIRS1, soilSIRS2)
+    
+    soilSIR$ADJ.TITRE[soilSIR$ADJ.TITRE<0] = NA  
+    soilSIR <- filter(soilSIR, !grepl("B", SAMPLE))
+    
+    soilSIR <- mutate(soilSIR, C.RELEASED = 1000000*
+                        (ADJ.TITRE*(HCL_N/concNaOH))*12/(1000*26*10))  
+    soilSIRC <- soilSIR %>% rename(POINT=SAMPLE) %>%
+      select(POINT, C.RELEASED)
+    
+    agParams <- left_join(agParams, soilSIRC, by="POINT")
+  }
   #   write.csv(agParams, "agParams.csv", row.names=F)
   agParams <- separate(agParams, col="POINT", into=c("SITEID", "POINTTYPE", "POINTID"), sep=c(3,4))
   agParams <- separate(agParams, col="SITEID", into=c("TREATMENT", "SITENO"), sep=2, remove=F)
@@ -110,8 +136,10 @@ library(reshape2)
   boxplot(C_PERC~SITEID, data = soilCN, ylab = "Soil %C")
   grid(NA, 5, lwd = 2)
   
-  par(mfrow = c(3,1))
-  boxplot(CNRATIO~SITEID, data = agParams, ylab = "Litter C/N Ratio")
+  par(mfrow = c(4,1))
+  boxplot(CNRATIO~SITEID, data = agParams, ylab = "Litter C/N")
+  grid(NA, 5, lwd = 2)
+  boxplot(C.RELEASED~SITEID, data = agParams, ylab = "C-CO2 micro g / hr. g dry wt. soil", na.rm=T)
   grid(NA, 5, lwd = 2)
   boxplot(P_PERC~SITEID, data = agParams, ylab = "Litter %P")
   grid(NA, 5, lwd = 2)
@@ -128,10 +156,12 @@ library(reshape2)
   boxplot(C_PERC~SITEID, data = soilCN, ylab = "Soil %C")
   grid(NA, 5, lwd = 2)
   
-  par(mfrow = c(3,1))
+  par(mfrow = c(4,1))
   boxplot(CNRATIO~TREATMENT, data = agParams, ylab = "Litter C/N Ratio")
   grid(NA, 5, lwd = 2)
   boxplot(P_PERC~TREATMENT, data = agParams, ylab = "Litter %P")
+  grid(NA, 5, lwd = 2)
+  boxplot(C.RELEASED~TREATMENT, data = agParams, ylab = "C released")
   grid(NA, 5, lwd = 2)
   boxplot(C_PERC~TREATMENT, data = soilCN, ylab = "Soil %C")
   grid(NA, 5, lwd = 2)
