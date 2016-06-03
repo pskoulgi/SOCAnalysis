@@ -117,17 +117,22 @@ library(reshape2)
     soilSIRC <- soilSIR %>% rename(POINT=SAMPLE) %>%
       select(POINT, C.RELEASED)
     
-    agParams <- left_join(agParams, soilSIRC, by="POINT")
   }
-  #   write.csv(agParams, "agParams.csv", row.names=F)
-  agParams <- separate(agParams, col="POINT", into=c("SITEID", "POINTTYPE", "POINTID"), sep=c(3,4))
-  agParams <- separate(agParams, col="SITEID", into=c("TREATMENT", "SITENO"), sep=2, remove=F)
-  agParams$TREATMENT <- as.factor(agParams$TREATMENT)
-  agParams$SITEID <- as.factor(agParams$SITEID)
   
-  #   aa <- agParams %>% group_by(SITEID) %>% summarize(mean(BASAREA, na.rm=T)*10000)
 }
 
+# Processing ...
+{
+  # merge aboveground & belowground data point-wise
+  cCycle <- left_join(agParams, soilSIRC, by="POINT")
+  
+  cCycle <- separate(cCycle, col="POINT", 
+                     into=c("SITEID", "POINTTYPE", "POINTID"),
+                     sep=c(3,4), remove=F)
+  cCycle <- separate(cCycle, col="SITEID", into=c("TREATMENT", "SITENO"), sep=2, remove=F)
+  cCycle$TREATMENT <- as.factor(cCycle$TREATMENT)
+  cCycle$SITEID <- as.factor(cCycle$SITEID)
+}
 # Plot data
 {
   #   par(mfrow = c(2,1))
