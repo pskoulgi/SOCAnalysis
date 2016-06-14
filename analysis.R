@@ -104,8 +104,30 @@ library(ggplot2)
   
   treeDistrib$DBH <- (gbhs/pi)^2 %>% rowSums(na.rm=T) %>% sqrt()
   
-  treeDistrib <- filter(treeDistrib, DBH>=0.1)
+  treeDistrib <- treeDistrib %>% separate(col="POINT",
+                                          into=c("SITE.TYPE", "T"), sep=2,
+                                          remove=F) %>%
+    dplyr::select(-T) %>% separate(col="POINT",
+                                   into=c("SITE.ID", "PT.TYPE", "T", "PT.IN.SITE", "TT"),
+                                   sep=c(3,4,6,7), remove=F) %>% dplyr::select(-T, -TT)
   
+  treeDistrib <- treeDistrib %>% filter(DBH>=0.1) %>% filter(PT.TYPE!="D") %>%
+    filter(PT.IN.SITE==1) %>% dplyr::select(POINT, SITE.TYPE, SITE.ID, DISTANCE, DBH)
+    
+  
+  binBounds = c(0.1, 0.15, 0.25, 0.45, 0.95, 2)
+  treeDistrib$SIZE.CLASS[(binBounds[1]<treeDistrib$DBH) &
+                           (treeDistrib$DBH<=binBounds[2])] = "S1"
+  treeDistrib$SIZE.CLASS[(binBounds[2]<treeDistrib$DBH) &
+                           (treeDistrib$DBH<=binBounds[3])] = "S2"
+  treeDistrib$SIZE.CLASS[(binBounds[3]<treeDistrib$DBH) &
+                           (treeDistrib$DBH<=binBounds[4])] = "S3"
+  treeDistrib$SIZE.CLASS[(binBounds[4]<treeDistrib$DBH) &
+                           (treeDistrib$DBH<=binBounds[5])] = "S4"
+  treeDistrib$SIZE.CLASS[(binBounds[5]<treeDistrib$DBH) &
+                           (treeDistrib$DBH<=binBounds[6])] = "S5"
+  treeDistrib$SIZE.CLASS <- as.ordered((treeDistrib$SIZE.CLASS))
+
   # Compute TIP
   cOpt = -10^2/log(1/(0.1))
   treeDistrib$t <- (treeDistrib$DBH)*exp(-(treeDistrib$DISTANCE)^2/cOpt)
@@ -121,6 +143,22 @@ library(ggplot2)
   treeDens <- treeDistrib %>% group_by(POINT) %>% 
     summarise(TREE.DENS=n()*10000/(pi*10^2))
   
+  # Compute tree density by size class
+  treeDensBySizeClass <- treeDistrib %>% group_by(POINT, SIZE.CLASS) %>% 
+    summarise(TREE.DENS=n()*10000/(pi*10^2))
+  treeDensBySizeClass <- treeDensBySizeClass %>% group_by(POINT) %>% 
+    mutate(PROP.STEMS=TREE.DENS/sum(TREE.DENS))
+  treeDensBySizeClass <- treeDensBySizeClass %>% separate(col="POINT",
+                           into=c("SITE.TYPE", "T"), sep=2,
+                           remove=F) %>% dplyr::select(-T) %>% 
+    separate(col="POINT", into=c("SITE.ID", "T"), sep=3, remove=F) %>% 
+    dplyr::select(-T)
+  
+  treeDensMeans <- treeDensBySizeClass %>% group_by(SITE.TYPE, SIZE.CLASS) %>%
+    summarise(MEAN=mean(TREE.DENS), SD=sd(TREE.DENS), SE=sd(TREE.DENS)/sqrt(n()))
+  treeStemPropsMeans <- treeDensBySizeClass %>% group_by(SITE.TYPE, SIZE.CLASS) %>%
+    summarise(MEAN=mean(PROP.STEMS), SD=sd(PROP.STEMS), SE=sd(PROP.STEMS)/sqrt(n()))
+    
   aboveGround <- left_join(litter, basArea, by="POINT")
   aboveGround <- left_join(aboveGround, treeDens, by="POINT")
     
@@ -314,6 +352,30 @@ library(ggplot2)
                            Forest.name == "Arji" |
                            Forest.name == "Perumbadi") %>% 
     ggplot(aes(x=Litter.CtoN, y=Soil.C, color=Forest.type)) + geom_point(size=2)
+
+  # Size class-wise plotting of tree community
+  ggplot(treeDensMeans, aes(y=MEAN, x=SIZE.CLASS, fill=SITE.TYPE)) +
+    geom_bar(position="dodge", stat="identity") +
+    geom_errorbar(aes(ymin=MEAN-SE, ymax=MEAN+SE), width=.1, position=position_dodge(0.9)) +
+    scale_x_discrete(labels=c(paste(binBounds[1]*100,binBounds[2]*100, sep=" - "),
+                              paste(binBounds[2]*100,binBounds[3]*100, sep=" - "),
+                              paste(binBounds[3]*100,binBounds[4]*100, sep=" - "),
+                              paste(binBounds[4]*100,binBounds[5]*100, sep=" - "),
+                              paste(binBounds[5]*100,binBounds[6]*100, sep=" - "))) +
+    xlab("DBH (cm) class") + ylab("Stems/ha") + ylim(0,200) +
+    theme(legend.position=c(0.9, 0.8), legend.title=element_blank()) +
+    scale_fill_hue(labels=c("Contiguous", "Fragment"))
+  ggplot(treeStemPropsMeans, aes(y=MEAN, x=SIZE.CLASS, fill=SITE.TYPE)) +
+    geom_bar(position="dodge", stat="identity") + 
+    geom_errorbar(aes(ymin=MEAN-SE, ymax=MEAN+SE), width=.1, position=position_dodge(0.9)) +
+    scale_x_discrete(labels=c(paste(binBounds[1]*100,binBounds[2]*100, sep=" - "),
+                              paste(binBounds[2]*100,binBounds[3]*100, sep=" - "),
+                              paste(binBounds[3]*100,binBounds[4]*100, sep=" - "),
+                              paste(binBounds[4]*100,binBounds[5]*100, sep=" - "),
+                              paste(binBounds[5]*100,binBounds[6]*100, sep=" - "))) +
+    xlab("DBH (cm) class") + ylab("Proportion of stems") + ylim(0,0.4) +
+    theme(legend.position = c(0.9, 0.8), legend.title=element_blank()) +
+    scale_fill_hue(labels=c("Contiguous", "Fragment"))
 }
 
 
