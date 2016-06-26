@@ -142,6 +142,16 @@ library(ggplot2)
     summarise(BAS.AREA=sum(TreeBasArea, na.rm=T)*10000/(pi*10^2))
   treeDens <- treeDistrib %>% group_by(POINT) %>% 
     summarise(TREE.DENS=n()*10000/(pi*10^2))
+  largeTreeDens <- treeDistrib %>% mutate(IS.LARGE = DBH>0.7) %>%
+    group_by(POINT) %>% summarise(NO.LARGE.TREES = sum(IS.LARGE)*10000/(pi*10^2), 
+                                  PROP.LARGE.TREES = sum(IS.LARGE)/n())
+  largeBasalAreaFrac <- treeDistrib %>% mutate(IS.LARGE = DBH>0.7) %>%
+    group_by(POINT) %>% summarise(LARGE.TREE.BA = sum(TreeBasArea[DBH>0.7],
+                                                      na.rm=T)*
+                                                  10000/(pi*10^2),
+                                  LARGE.TREE.BA.FRAC =sum(TreeBasArea[DBH>0.7])/
+                                                      sum(TreeBasArea))
+  largeTreeDens <- left_join(largeTreeDens, largeBasalAreaFrac, by="POINT")
   
   # Compute tree density by size class
   treeDensBySizeClass <- treeDistrib %>% group_by(POINT, SIZE.CLASS) %>% 
@@ -180,12 +190,76 @@ library(ggplot2)
                           as.is=T, header=T, sep=",")
 }
 
+# Anand's species-wise leaf litter quality data
+{
+  # Replicated species-wise litter quality data
+  anandSpWiseLitter <- read.table("F:/Workspace/MSc/Project/scratchPad/Anand_specieswise_litter_CN.csv",
+                            as.is=T, header=T, sep=",")
+  anandSpWiseLitter <- anandSpWiseLitter %>% mutate (SP.CTON = C../N.) 
+  # Average litter quality for each species
+  speciesWiseLitterQual <- anandSpWiseLitter %>% 
+    group_by(species) %>% summarise(CN.RATIO=mean(SP.CTON))
+  
+  # Plot-level tree-id and basal area measurements. 
+  anandSpDominance <- read.table("F:/Workspace/MSc/Project/scratchPad/Anand_TreeCommunity_SpeciesDominance_plotData.csv",
+                                  as.is=T, header=T, sep=",")
+  anandSpDominance <- unite(anandSpDominance, SITE.PLOT.ID, site.name, plot.id,
+                            remove=F)
+  # Fractional contribution of each tree to its plot-level basal area
+  anandSpDominance <- anandSpDominance %>% group_by(SITE.PLOT.ID) %>% 
+    arrange(desc(basal.area_sq.cm)) %>% 
+    mutate(BAS.AREA.FRAC = basal.area_sq.cm/sum(basal.area_sq.cm)) %>%
+    mutate(BAS.AREA.CUMFRAC = cumsum(BAS.AREA.FRAC))
+  # Biggest trees that contribute to top 70% basal area at plot level
+  anand70PercDom <- anandSpDominance %>%
+    select(-index, -date, -family, -diameter_cm, -height_m, -Remarks) %>%
+    filter(BAS.AREA.CUMFRAC >= 0.7)
+  
+  # LUT for tree id and code used
+  anandSpeciesCodes <- read.table("F:/Workspace/MSc/Project/scratchPad/Anand_TreeCommunity_Families.csv",
+                                  as.is=T, header=T, sep=",")
+  anandSpeciesCodes <- anandSpeciesCodes %>% dplyr::select(code, combine) %>%
+    rename(species=combine)
+  
+  # Retain 
+  anand70PercDom <- inner_join(anandSpeciesCodes, anand70PercDom, by="species")
+  anand70PercDom <- right_join(speciesWiseLitterQual, anand70PercDom,
+                               by= c("species"="code"))
+  
+  anand70PercDomMySites <- filter (anand70PercDom, 
+                                   site.name=="Kokka" |
+                                     site.name=="Ruduraguppae" |
+                                     site.name=="Arji" |
+                                     site.name=="Arpattu")
+  commAvgdLittQualMySites <- anand70PercDomMySites %>%
+    group_by(SITE.PLOT.ID) %>%
+    summarise(SITE.AVG.CN.RATIO = sum(CN.RATIO*BAS.AREA.FRAC, na.rm=T)/sum(BAS.AREA.FRAC, na.rm=T),
+           type = first(type))
+  noLargeTreesMySitesAnandData <- anand70PercDomMySites %>% group_by(type) %>%
+    summarise(NO.LRG.TREES=n())
+  commAvgdLittQualMySites %>% group_by(type) %>% 
+    summarise(COMM.AV.LIT.QUAL.MEAN= mean(SITE.AVG.CN.RATIO, na.rm=T),
+              SE=sd(SITE.AVG.CN.RATIO, na.rm=T)/sqrt(n()))
+  
+  aa <- dplyr::select(anand70PercDom, SITE.PLOT.ID, species, BAS.AREA.FRAC)
+  aa <- mutate(aa, Species.l=species)
+  anandSpeciesCodes <- mutate(anandSpeciesCodes, Species.l=species)
+  bb <- left_join(aa, anandSpeciesCodes, by="Species.l")
+  
+}
+
 # Processing ...
 {
   # merge aboveground & belowground data point-wise
   cCycle <- belowGround %>% 
     dplyr::select(-SITE.ID, -POINT.TYPE, -POINT.IN.SITE, -POINT.NO, -SOIL.WT) %>%
     left_join(aboveGround, ., by="POINT")
+  cCycle <- cCycle %>% 
+    separate(col="SITE.ID", into=c("SITE.TYPE", "SITE.NO"), sep=2, remove=F) %>%
+    dplyr::select(-SITE.NO)
+  cCycle$SITE.TYPE <- as.factor(cCycle$SITE.TYPE)
+  
+  cCycle <- left_join(cCycle, largeTreeDens, by="POINT")
   
   # Some data exploration visualization for fitting linear models
   sirPred <- dplyr::select(cCycle, TIP, LITTER.CN.RATIO, LITTER.N, LITTER.WT, LITTER.P)
@@ -197,6 +271,142 @@ library(ggplot2)
   vif(sirPred)
   vif(socPred)
   
+  cCycle <- cCycle %>% mutate(LITTER.NP.RATIO = LITTER.N/LITTER.P) %>%
+    mutate(LITTER.WT = LITTER.WT/0.09)
+  cCycle$SOIL.SIR[cCycle$SOIL.SIR < 0.18] = NA
+  
+  # Linear models of the responses
+  socFullLM <- lm(SOIL.C ~ LITTER.CN.RATIO + LITTER.P + LITTER.WT + BAS.AREA + SITE.TYPE, data=cCycle)
+  
+  sirFullLM <- lm(SOIL.SIR ~ LITTER.CN.RATIO + LITTER.P + LITTER.WT + BAS.AREA + SITE.TYPE, data=cCycle)
+  
+  # Linear mixed effects models of the responses
+  library(lme4)
+  soilcLittPLMM <- lmer(log(SOIL.C) ~ LITTER.P + (1|SITE.ID),
+                       data=cCycle, REML=FALSE)
+  soilcLittQualLMM <- lmer(log(SOIL.C) ~ LITTER.CN.RATIO + LITTER.P + (1|SITE.ID),
+                      data=cCycle, REML=FALSE)
+  soilcStandBiomassLMM <- lmer(log(SOIL.C) ~ LITTER.WT + log(BAS.AREA) + (1|SITE.ID),
+                           data=cCycle, REML=FALSE)
+  soilcLittPForTypeLMM <- lmer(log(SOIL.C) ~ LITTER.P + SITE.TYPE + 
+                                             (1|SITE.ID),
+                               data=cCycle, REML=FALSE)
+  soilcLittQualForTypeLMM <- lmer(log(SOIL.C) ~ LITTER.CN.RATIO + LITTER.P + SITE.TYPE + 
+                                                (1|SITE.ID),
+                                  data=cCycle, REML=FALSE)
+  soilcStandBiomassForTypeLMM <- lmer(log(SOIL.C) ~ LITTER.WT + log(BAS.AREA) + SITE.ID + 
+                                             (1|SITE.ID),
+                               data=cCycle, REML=FALSE)
+  soilcFullLMM <- lmer(log(SOIL.C) ~ LITTER.CN.RATIO + LITTER.P + LITTER.WT + 
+                                     log(BAS.AREA) + (1|SITE.ID),
+                                  data=cCycle, REML=FALSE)
+  soilcFullForTypeLMM <- lmer(log(SOIL.C) ~ LITTER.CN.RATIO + LITTER.P + LITTER.WT + 
+                         log(BAS.AREA) + SITE.TYPE + (1|SITE.ID),
+                       data=cCycle, REML=FALSE)
+  
+  anova(soilcLittPLMM, soilcLittQualLMM, soilcStandBiomassLMM,
+        soilcLittPForTypeLMM, soilcLittQualForTypeLMM, soilcStandBiomassForTypeLMM,
+        soilcFullLMM, soilcFullForTypeLMM)
+  
+  plot(predict(soilcFullLMM), log(cCycle$SOIL.C[!is.na(cCycle$SOIL.C)]),
+       ylab='y = log(Soil C)', xlab='predicted', main='soilcFullLMM y v/s y_hat')
+  abline(0,1)
+  plot(predict(soilcFullLMM), residuals(soilcFullLMM), ylab='residuals', 
+       xlab='predicted', main='soilcFullLMM residuals v/s predicted')
+  abline(0,0)
+  qqnorm(residuals(soilcFullLMM), main='soilcFullLMM residuals')
+  qqline(residuals(soilcFullLMM))
+  
+  sirLittPLMM <- lmer(log(SOIL.SIR) ~ LITTER.P + (1|SITE.ID),
+                        data=cCycle, REML=FALSE)
+  sirLittQualLMM <- lmer(log(SOIL.SIR) ~ LITTER.CN.RATIO + LITTER.P + (1|SITE.ID),
+                           data=cCycle, REML=FALSE)
+  sirStandBiomassLMM <- lmer(log(SOIL.SIR) ~ LITTER.WT + log(BAS.AREA) + (1|SITE.ID),
+                               data=cCycle, REML=FALSE)
+  sirLittPForTypeLMM <- lmer(log(SOIL.SIR) ~ LITTER.P + SITE.TYPE + 
+                                 (1|SITE.ID),
+                               data=cCycle, REML=FALSE)
+  sirLittQualForTypeLMM <- lmer(log(SOIL.SIR) ~ LITTER.CN.RATIO + LITTER.P + SITE.TYPE + 
+                                    (1|SITE.ID),
+                                  data=cCycle, REML=FALSE)
+  sirStandBiomassForTypeLMM <- lmer(log(SOIL.SIR) ~ LITTER.WT + log(BAS.AREA) + SITE.ID + 
+                                 (1|SITE.ID),
+                               data=cCycle, REML=FALSE)
+  sirFullLMM <- lmer(log(SOIL.SIR) ~ LITTER.CN.RATIO + LITTER.P + LITTER.WT + 
+                         log(BAS.AREA) + (1|SITE.ID),
+                       data=cCycle, REML=FALSE)
+  sirFullForTypeLMM <- lmer(log(SOIL.SIR) ~ LITTER.CN.RATIO + LITTER.P + LITTER.WT + 
+                                log(BAS.AREA) + SITE.TYPE + (1|SITE.ID),
+                              data=cCycle, REML=FALSE)
+  
+  anova(sirLittPLMM, sirLittQualLMM, sirStandBiomassLMM,
+        sirLittPForTypeLMM, sirLittQualForTypeLMM, sirStandBiomassForTypeLMM,
+        sirFullLMM, sirFullForTypeLMM)
+  
+  plot(predict(sirFullLMM), log(cCycle$SOIL.SIR[!is.na(cCycle$SOIL.SIR)]),
+       ylab='y = log(SIR)', xlab='predicted', main='sirFullLMM y v/s y_hat')
+  abline(0,1)
+  plot(predict(sirFullLMM), residuals(sirFullLMM), ylab='residuals', 
+       xlab='predicted', main='sirFullLMM residuals v/s predicted')
+  abline(0,0)
+  qqnorm(residuals(sirFullLMM), main='sirFullLMM residuals')
+  qqline(residuals(sirFullLMM))
+  
+  # Modeling with scaling of variables
+  cCycle.S <- data.frame(POINT = cCycle$POINT,
+                         SITE.TYPE=cCycle$SITE.TYPE,
+                         SITE.ID=cCycle$SITE.ID,
+                         SOIL.SIR.S=scale(cCycle$SOIL.SIR), 
+                         SOIL.C.S=scale(cCycle$SOIL.C),
+                         LITTER.CN.RATIO.S=scale(cCycle$LITTER.CN.RATIO),
+                         LITTER.P.S=scale(cCycle$LITTER.P),
+                         LITTER.WT.S=scale(cCycle$LITTER.WT),
+                         BAS.AREA.S=scale(cCycle$BAS.AREA))
+
+  sirFullLMM.S <- lmer((SOIL.SIR.S) ~ LITTER.CN.RATIO.S + LITTER.P.S +
+                       LITTER.WT.S + (BAS.AREA.S) + SITE.TYPE +
+                       (1|SITE.ID),
+                     data=cCycle.S, REML=FALSE)
+  plot(predict(sirFullLMM.S), (cCycle.S$SOIL.SIR.S[!is.na(cCycle.S$SOIL.SIR.S)]),
+       ylab='y = SIR.S', xlab='predicted', main='sirFullLMM y v/s y_hat')
+  abline(0,1)
+  plot(predict(sirFullLMM.S), residuals(sirFullLMM.S), ylab='residuals', 
+       xlab='predicted', main='sirFullLMM residuals v/s predicted')
+  abline(0,0)
+  qqnorm(residuals(sirFullLMM.S), main='sirFullLMM residuals')
+  qqline(residuals(sirFullLMM.S))
+  
+  sirLittQualLMM.S <- lmer((SOIL.SIR.S) ~ LITTER.CN.RATIO.S + LITTER.P.S + 
+                           SITE.TYPE + (1|SITE.ID),
+                         data=cCycle.S, REML=FALSE)
+  plot(predict(sirLittQualLMM.S), (cCycle.S$SOIL.SIR.S[!is.na(cCycle.S$SOIL.SIR.S)]),
+       ylab='y = (SIR.S)', xlab='predicted', main='sirLittQualLMM y v/s y_hat')
+  abline(0,1)
+  plot(predict(sirLittQualLMM.S), residuals(sirLittQualLMM.S), ylab='residuals', 
+       xlab='predicted', main='sirLittQualLMM residuals v/s predicted')
+  abline(0,0)
+  qqnorm(residuals(sirLittQualLMM.S), main='sirLittQualLMM residuals')
+  qqline(residuals(sirLittQualLMM.S))
+  
+  par(mfrow = c(4,2))
+  qqnorm(cCycle$SOIL.C, main='Soil C')
+  qqline(cCycle$SOIL.C)
+  qqnorm(cCycle$SOIL.SIR, main='Soil SIR')
+  qqline(cCycle$SOIL.SIR)
+  qqnorm(log(cCycle$SOIL.C), main='log(Soil C)')
+  qqline(log(cCycle$SOIL.C))
+  qqnorm(log(cCycle$SOIL.SIR), main='log(Soil SIR)')
+  qqline(log(cCycle$SOIL.SIR))
+  qqnorm(cCycle$LITTER.P, main='Litter P')
+  qqline(cCycle$LITTER.P)
+  qqnorm(cCycle$LITTER.CN.RATIO, main='Litter C/N')
+  qqline(cCycle$LITTER.CN.RATIO)
+  qqnorm(cCycle$LITTER.WT, main='Litter Weight')
+  qqline(cCycle$LITTER.WT)
+  qqnorm(cCycle$BAS.AREA, main='Basal area')
+  qqline(cCycle$BAS.AREA)
+  
+    
   # To check for interaction
   coplot(SOIL.C ~ SOIL.SIR | LITTER.P, ylab = "SOC (%)", data=cCycle,
          xlab = "SIR (microgram C-CO2)",
@@ -206,10 +416,7 @@ library(ggplot2)
           points(x, y) })
   
   # Scatter plots of responses vs each predictor
-  cCycle <- cCycle %>% 
-    separate(col="SITE.ID", into=c("SITE.TYPE", "SITE.NO"), sep=2, remove=F) %>%
-    select(-SITE.NO)
-  cCycle$SITE.TYPE <- as.factor(cCycle$SITE.TYPE)
+  
   p1 <- ggplot(cCycle, aes(x=LITTER.CN.RATIO, y=SOIL.SIR, color=SITE.TYPE)) +
     geom_point(size=2) + xlab("Litter C/N") + ylab("Soil SIR")
   
@@ -329,7 +536,7 @@ library(ggplot2)
   
   # To see if basal area and tip are correlated
   ggplot(cCycle, aes(x=TIP, y=BAS.AREA, color=SITE.TYPE)) +
-    geom_point(size=2)
+    geom_point(size=2) + stat_smooth(method=lm)
   
 #   cCycle.l1g <- cCycle %>% group_by(SITE.TYPE) %>%
 #     do(glance(fitl1 <- lm(SOIL.SIR ~ LITTER.CN.RATIO+LITTER.N, data=., na.action=na.omit)))
@@ -354,7 +561,7 @@ library(ggplot2)
     ggplot(aes(x=Litter.CtoN, y=Soil.C, color=Forest.type)) + geom_point(size=2)
 
   # Size class-wise plotting of tree community
-  ggplot(treeDensMeans, aes(y=MEAN, x=SIZE.CLASS, fill=SITE.TYPE)) +
+  p41 <- ggplot(treeDensMeans, aes(y=MEAN, x=SIZE.CLASS, fill=SITE.TYPE)) +
     geom_bar(position="dodge", stat="identity") +
     geom_errorbar(aes(ymin=MEAN-SE, ymax=MEAN+SE), width=.1, position=position_dodge(0.9)) +
     scale_x_discrete(labels=c(paste(binBounds[1]*100,binBounds[2]*100, sep=" - "),
@@ -365,7 +572,7 @@ library(ggplot2)
     xlab("DBH (cm) class") + ylab("Stems/ha") + ylim(0,200) +
     theme(legend.position=c(0.9, 0.8), legend.title=element_blank()) +
     scale_fill_hue(labels=c("Contiguous", "Fragment"))
-  ggplot(treeStemPropsMeans, aes(y=MEAN, x=SIZE.CLASS, fill=SITE.TYPE)) +
+  p42 <- ggplot(treeStemPropsMeans, aes(y=MEAN, x=SIZE.CLASS, fill=SITE.TYPE)) +
     geom_bar(position="dodge", stat="identity") + 
     geom_errorbar(aes(ymin=MEAN-SE, ymax=MEAN+SE), width=.1, position=position_dodge(0.9)) +
     scale_x_discrete(labels=c(paste(binBounds[1]*100,binBounds[2]*100, sep=" - "),
@@ -376,6 +583,7 @@ library(ggplot2)
     xlab("DBH (cm) class") + ylab("Proportion of stems") + ylim(0,0.4) +
     theme(legend.position = c(0.9, 0.8), legend.title=element_blank()) +
     scale_fill_hue(labels=c("Contiguous", "Fragment"))
+  multiplot(p41, p42, cols=1)
 }
 
 
