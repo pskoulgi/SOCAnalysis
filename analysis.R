@@ -115,7 +115,7 @@ library(ggplot2)
     filter(PT.IN.SITE==1) %>% dplyr::select(POINT, SITE.TYPE, SITE.ID, DISTANCE, DBH)
     
   
-  binBounds = c(0.1, 0.15, 0.25, 0.45, 0.95, 2)
+  binBounds = c(0.1, 0.15, 0.25, 0.45, 0.85, 2)
   treeDistrib$SIZE.CLASS[(binBounds[1]<treeDistrib$DBH) &
                            (treeDistrib$DBH<=binBounds[2])] = "S1"
   treeDistrib$SIZE.CLASS[(binBounds[2]<treeDistrib$DBH) &
@@ -212,8 +212,8 @@ library(ggplot2)
     mutate(BAS.AREA.CUMFRAC = cumsum(BAS.AREA.FRAC))
   # Biggest trees that contribute to top 70% basal area at plot level
   anand70PercDom <- anandSpDominance %>%
-    select(-index, -date, -family, -diameter_cm, -height_m, -Remarks) %>%
-    filter(BAS.AREA.CUMFRAC >= 0.7)
+    dplyr::select(-index, -date, -family, -diameter_cm, -height_m, -Remarks) %>%
+    filter(BAS.AREA.CUMFRAC <= 0.7)
   
   # LUT for tree id and code used
   anandSpeciesCodes <- read.table("F:/Workspace/MSc/Project/scratchPad/Anand_TreeCommunity_Families.csv",
@@ -233,19 +233,15 @@ library(ggplot2)
                                      site.name=="Arpattu")
   commAvgdLittQualMySites <- anand70PercDomMySites %>%
     group_by(SITE.PLOT.ID) %>%
-    summarise(SITE.AVG.CN.RATIO = sum(CN.RATIO*BAS.AREA.FRAC, na.rm=T)/sum(BAS.AREA.FRAC, na.rm=T),
-           type = first(type))
+    summarise(SITE.AVG.CN.RATIO = sum(CN.RATIO*BAS.AREA.FRAC, na.rm=T)/0.7,
+              SITE.TYPE = first(type))
   noLargeTreesMySitesAnandData <- anand70PercDomMySites %>% group_by(type) %>%
     summarise(NO.LRG.TREES=n())
-  commAvgdLittQualMySites %>% group_by(type) %>% 
-    summarise(COMM.AV.LIT.QUAL.MEAN= mean(SITE.AVG.CN.RATIO, na.rm=T),
-              SE=sd(SITE.AVG.CN.RATIO, na.rm=T)/sqrt(n()))
-  
-  aa <- dplyr::select(anand70PercDom, SITE.PLOT.ID, species, BAS.AREA.FRAC)
-  aa <- mutate(aa, Species.l=species)
-  anandSpeciesCodes <- mutate(anandSpeciesCodes, Species.l=species)
-  bb <- left_join(aa, anandSpeciesCodes, by="Species.l")
-  
+  commAvgLittQual <- commAvgdLittQualMySites %>% group_by(SITE.TYPE) %>% 
+    summarise(LITT.CTON.MEAN= mean(SITE.AVG.CN.RATIO, na.rm=T),
+              LITT.CTON.SE=sd(SITE.AVG.CN.RATIO, na.rm=T)/sqrt(n()))
+  commAvgLittQual <- bind_cols(data.frame(NAME=c("Comm. Avg.", "Comm. Avg.")),
+                               commAvgLittQual)
 }
 
 # Processing ...
@@ -261,6 +257,10 @@ library(ggplot2)
   
   cCycle <- left_join(cCycle, largeTreeDens, by="POINT")
   
+  cCycle <- cCycle %>% mutate(LITTER.NP.RATIO = LITTER.N/LITTER.P) %>%
+    mutate(LITTER.WT = LITTER.WT/0.09)
+  cCycle$SOIL.SIR[cCycle$SOIL.SIR < 0.18] = NA
+  
   # Some data exploration visualization for fitting linear models
   sirPred <- dplyr::select(cCycle, TIP, LITTER.CN.RATIO, LITTER.N, LITTER.WT, LITTER.P)
   socPred <- dplyr::select(cCycle, TIP, LITTER.CN.RATIO, LITTER.N, LITTER.WT, LITTER.P,
@@ -271,10 +271,6 @@ library(ggplot2)
   vif(sirPred)
   vif(socPred)
   
-  cCycle <- cCycle %>% mutate(LITTER.NP.RATIO = LITTER.N/LITTER.P) %>%
-    mutate(LITTER.WT = LITTER.WT/0.09)
-  cCycle$SOIL.SIR[cCycle$SOIL.SIR < 0.18] = NA
-  
   # Linear models of the responses
   socFullLM <- lm(SOIL.C ~ LITTER.CN.RATIO + LITTER.P + LITTER.WT + BAS.AREA + SITE.TYPE, data=cCycle)
   
@@ -282,75 +278,59 @@ library(ggplot2)
   
   # Linear mixed effects models of the responses
   library(lme4)
-  soilcLittPLMM <- lmer(log(SOIL.C) ~ LITTER.P + (1|SITE.ID),
-                       data=cCycle, REML=FALSE)
-  soilcLittQualLMM <- lmer(log(SOIL.C) ~ LITTER.CN.RATIO + LITTER.P + (1|SITE.ID),
-                      data=cCycle, REML=FALSE)
-  soilcStandBiomassLMM <- lmer(log(SOIL.C) ~ LITTER.WT + log(BAS.AREA) + (1|SITE.ID),
+  soilcLittPLMM    <- lmer(SOIL.C ~ LITTER.P + SITE.TYPE +
+                             (1|SITE.ID),
                            data=cCycle, REML=FALSE)
-  soilcLittPForTypeLMM <- lmer(log(SOIL.C) ~ LITTER.P + SITE.TYPE + 
-                                             (1|SITE.ID),
-                               data=cCycle, REML=FALSE)
-  soilcLittQualForTypeLMM <- lmer(log(SOIL.C) ~ LITTER.CN.RATIO + LITTER.P + SITE.TYPE + 
-                                                (1|SITE.ID),
-                                  data=cCycle, REML=FALSE)
-  soilcStandBiomassForTypeLMM <- lmer(log(SOIL.C) ~ LITTER.WT + log(BAS.AREA) + SITE.ID + 
-                                             (1|SITE.ID),
-                               data=cCycle, REML=FALSE)
-  soilcFullLMM <- lmer(log(SOIL.C) ~ LITTER.CN.RATIO + LITTER.P + LITTER.WT + 
-                                     log(BAS.AREA) + (1|SITE.ID),
-                                  data=cCycle, REML=FALSE)
-  soilcFullForTypeLMM <- lmer(log(SOIL.C) ~ LITTER.CN.RATIO + LITTER.P + LITTER.WT + 
-                         log(BAS.AREA) + SITE.TYPE + (1|SITE.ID),
-                       data=cCycle, REML=FALSE)
-  
-  anova(soilcLittPLMM, soilcLittQualLMM, soilcStandBiomassLMM,
-        soilcLittPForTypeLMM, soilcLittQualForTypeLMM, soilcStandBiomassForTypeLMM,
-        soilcFullLMM, soilcFullForTypeLMM)
-  
-  plot(predict(soilcFullLMM), log(cCycle$SOIL.C[!is.na(cCycle$SOIL.C)]),
-       ylab='y = log(Soil C)', xlab='predicted', main='soilcFullLMM y v/s y_hat')
-  abline(0,1)
-  plot(predict(soilcFullLMM), residuals(soilcFullLMM), ylab='residuals', 
-       xlab='predicted', main='soilcFullLMM residuals v/s predicted')
-  abline(0,0)
-  qqnorm(residuals(soilcFullLMM), main='soilcFullLMM residuals')
-  qqline(residuals(soilcFullLMM))
-  
-  sirLittPLMM <- lmer(log(SOIL.SIR) ~ LITTER.P + (1|SITE.ID),
-                        data=cCycle, REML=FALSE)
-  sirLittQualLMM <- lmer(log(SOIL.SIR) ~ LITTER.CN.RATIO + LITTER.P + (1|SITE.ID),
+  soilcLittQualLMM <- lmer(SOIL.C ~ LITTER.CN.RATIO + LITTER.P + SITE.TYPE + 
+                             (1|SITE.ID),
                            data=cCycle, REML=FALSE)
-  sirStandBiomassLMM <- lmer(log(SOIL.SIR) ~ LITTER.WT + log(BAS.AREA) + (1|SITE.ID),
+  soilcStdBMassLMM <- lmer(SOIL.C ~ LITTER.WT + BAS.AREA + SITE.TYPE + 
+                             (1|SITE.ID),
+                           data=cCycle, REML=FALSE)
+  soilcFullLMM     <- lmer(SOIL.C ~ LITTER.CN.RATIO + LITTER.P + LITTER.WT + 
+                             BAS.AREA + SITE.TYPE +
+                             (1|SITE.ID),
+                           data=cCycle, REML=FALSE)
+  
+#   anova(soilcLittPLMM, soilcLittQualLMM, soilcStandBiomassLMM,
+#         soilcLittPForTypeLMM, soilcLittQualForTypeLMM, soilcStandBiomassForTypeLMM,
+#         soilcFullLMM, soilcFullForTypeLMM)
+#   
+#   plot(predict(soilcFullLMM), log(cCycle$SOIL.C[!is.na(cCycle$SOIL.C)]),
+#        ylab='y = log(Soil C)', xlab='predicted', main='soilcFullLMM y v/s y_hat')
+#   abline(0,1)
+#   plot(predict(soilcFullLMM), residuals(soilcFullLMM), ylab='residuals', 
+#        xlab='predicted', main='soilcFullLMM residuals v/s predicted')
+#   abline(0,0)
+#   qqnorm(residuals(soilcFullLMM), main='soilcFullLMM residuals')
+#   qqline(residuals(soilcFullLMM))
+  
+  sirLittPLMM    <- lmer(log(SOIL.SIR) ~ LITTER.P + SITE.TYPE +
+                           (1|SITE.ID),
+                         data=cCycle, REML=FALSE)
+  sirLittQualLMM <- lmer(log(SOIL.SIR) ~ LITTER.CN.RATIO + LITTER.P + SITE.TYPE +
+                           (1|SITE.ID),
+                           data=cCycle, REML=FALSE)
+  sirStdBMassLMM <- lmer(log(SOIL.SIR) ~ LITTER.WT + log(BAS.AREA) + SITE.TYPE +
+                           (1|SITE.ID),
                                data=cCycle, REML=FALSE)
-  sirLittPForTypeLMM <- lmer(log(SOIL.SIR) ~ LITTER.P + SITE.TYPE + 
-                                 (1|SITE.ID),
-                               data=cCycle, REML=FALSE)
-  sirLittQualForTypeLMM <- lmer(log(SOIL.SIR) ~ LITTER.CN.RATIO + LITTER.P + SITE.TYPE + 
-                                    (1|SITE.ID),
-                                  data=cCycle, REML=FALSE)
-  sirStandBiomassForTypeLMM <- lmer(log(SOIL.SIR) ~ LITTER.WT + log(BAS.AREA) + SITE.ID + 
-                                 (1|SITE.ID),
-                               data=cCycle, REML=FALSE)
-  sirFullLMM <- lmer(log(SOIL.SIR) ~ LITTER.CN.RATIO + LITTER.P + LITTER.WT + 
-                         log(BAS.AREA) + (1|SITE.ID),
+  sirFullLMM     <- lmer(log(SOIL.SIR) ~ LITTER.CN.RATIO + LITTER.P + LITTER.WT + 
+                         log(BAS.AREA) + SITE.TYPE +
+                           (1|SITE.ID),
                        data=cCycle, REML=FALSE)
-  sirFullForTypeLMM <- lmer(log(SOIL.SIR) ~ LITTER.CN.RATIO + LITTER.P + LITTER.WT + 
-                                log(BAS.AREA) + SITE.TYPE + (1|SITE.ID),
-                              data=cCycle, REML=FALSE)
   
-  anova(sirLittPLMM, sirLittQualLMM, sirStandBiomassLMM,
-        sirLittPForTypeLMM, sirLittQualForTypeLMM, sirStandBiomassForTypeLMM,
-        sirFullLMM, sirFullForTypeLMM)
-  
-  plot(predict(sirFullLMM), log(cCycle$SOIL.SIR[!is.na(cCycle$SOIL.SIR)]),
-       ylab='y = log(SIR)', xlab='predicted', main='sirFullLMM y v/s y_hat')
-  abline(0,1)
-  plot(predict(sirFullLMM), residuals(sirFullLMM), ylab='residuals', 
-       xlab='predicted', main='sirFullLMM residuals v/s predicted')
-  abline(0,0)
-  qqnorm(residuals(sirFullLMM), main='sirFullLMM residuals')
-  qqline(residuals(sirFullLMM))
+#   anova(sirLittPLMM, sirLittQualLMM, sirStandBiomassLMM,
+#         sirLittPForTypeLMM, sirLittQualForTypeLMM, sirStandBiomassForTypeLMM,
+#         sirFullLMM, sirFullForTypeLMM)
+#   
+#   plot(predict(sirFullLMM), log(cCycle$SOIL.SIR[!is.na(cCycle$SOIL.SIR)]),
+#        ylab='y = log(SIR)', xlab='predicted', main='sirFullLMM y v/s y_hat')
+#   abline(0,1)
+#   plot(predict(sirFullLMM), residuals(sirFullLMM), ylab='residuals', 
+#        xlab='predicted', main='sirFullLMM residuals v/s predicted')
+#   abline(0,0)
+#   qqnorm(residuals(sirFullLMM), main='sirFullLMM residuals')
+#   qqline(residuals(sirFullLMM))
   
   # Modeling with scaling of variables
   cCycle.S <- data.frame(POINT = cCycle$POINT,
@@ -363,31 +343,139 @@ library(ggplot2)
                          LITTER.WT.S=scale(cCycle$LITTER.WT),
                          BAS.AREA.S=scale(cCycle$BAS.AREA))
 
-  sirFullLMM.S <- lmer((SOIL.SIR.S) ~ LITTER.CN.RATIO.S + LITTER.P.S +
-                       LITTER.WT.S + (BAS.AREA.S) + SITE.TYPE +
-                       (1|SITE.ID),
-                     data=cCycle.S, REML=FALSE)
-  plot(predict(sirFullLMM.S), (cCycle.S$SOIL.SIR.S[!is.na(cCycle.S$SOIL.SIR.S)]),
-       ylab='y = SIR.S', xlab='predicted', main='sirFullLMM y v/s y_hat')
+  S.soilcLittPOnlyLMM    <- lmer(SOIL.C.S ~ LITTER.P.S +
+                               (1|SITE.ID),
+                             data=cCycle.S, REML=FALSE)
+  S.soilcLittCNOnlyLMM <- lmer(SOIL.C.S ~ LITTER.CN.RATIO.S +
+                             (1|SITE.ID),
+                           data=cCycle.S, REML=FALSE)
+  S.soilcLittWtOnlyLMM <- lmer(SOIL.C.S ~ LITTER.WT.S +
+                             (1|SITE.ID),
+                           data=cCycle.S, REML=FALSE)
+  S.soilcBasAreaOnlyLMM <- lmer(SOIL.C.S ~ BAS.AREA.S +
+                              (1|SITE.ID),
+                            data=cCycle.S, REML=FALSE)
+  S.soilcLittPLMM    <- lmer(SOIL.C.S ~ LITTER.P.S + SITE.TYPE +
+                               (1|SITE.ID),
+                             data=cCycle.S, REML=FALSE)
+  S.soilcLittCNLMM <- lmer(SOIL.C.S ~ LITTER.CN.RATIO.S + SITE.TYPE + 
+                               (1|SITE.ID),
+                             data=cCycle.S, REML=FALSE)
+  S.soilcLittWtLMM <- lmer(SOIL.C.S ~ LITTER.WT.S + SITE.TYPE + 
+                             (1|SITE.ID),
+                           data=cCycle.S, REML=FALSE)
+  S.soilcBasAreaLMM <- lmer(SOIL.C.S ~ BAS.AREA.S + SITE.TYPE + 
+                              (1|SITE.ID),
+                            data=cCycle.S, REML=FALSE)
+  S.soilcLittPnFragLMM <- lmer(SOIL.C.S ~ (LITTER.P.S*SITE.TYPE) +
+                                 (1|SITE.ID),
+                               data=cCycle.S, REML=FALSE)
+  S.soilcLittCNnFragLMM <- lmer(SOIL.C.S ~ (LITTER.CN.RATIO.S*SITE.TYPE) +
+                                 (1|SITE.ID),
+                               data=cCycle.S, REML=FALSE)
+  S.soilcLittWtnFragLMM <- lmer(SOIL.C.S ~ (LITTER.WT.S*SITE.TYPE) +
+                                 (1|SITE.ID),
+                               data=cCycle.S, REML=FALSE)
+  S.soilcBasAreanFragLMM <- lmer(SOIL.C.S ~ (BAS.AREA.S*SITE.TYPE) +
+                                 (1|SITE.ID),
+                               data=cCycle.S, REML=FALSE)
+  S.soilcLittQualLMM <- lmer(SOIL.C.S ~ LITTER.CN.RATIO.S + LITTER.P.S + SITE.TYPE + 
+                                   (1|SITE.ID),
+                                 data=cCycle.S, REML=FALSE)
+  S.soilcStdBMassLMM <- lmer(SOIL.C.S ~ LITTER.WT.S + BAS.AREA.S + SITE.TYPE + 
+                               (1|SITE.ID),
+                             data=cCycle.S, REML=FALSE)
+  S.soilcFullLMM     <- lmer(SOIL.C.S ~ LITTER.CN.RATIO.S + LITTER.P.S + LITTER.WT.S + 
+                               BAS.AREA.S + SITE.TYPE + (1|SITE.ID),
+                             data=cCycle.S, REML=FALSE)
+  summary(model.avg(S.soilcLittCNLMM, S.soilcLittCNnFragLMM,
+                    S.soilcLittPLMM, S.soilcLittPnFragLMM,
+                    S.soilcLittWtLMM, S.soilcLittWtnFragLMM,
+                    S.soilcBasAreaLMM, S.soilcBasAreanFragLMM))
+  summary(model.avg(S.soilcFullLMM, 
+                    S.soilcStdBMassLMM, S.soilcLittWtLMM, S.soilcBasAreaLMM,
+                    S.soilcLittQualLMM, S.soilcLittCNLMM, S.soilcLittPLMM, rank="AIC"))
+
+  par(mfrow = c(2,2))
+  plot(predict(S.soilcLittWtLMM), (cCycle.S$SOIL.C.S[!is.na(cCycle.S$SOIL.C.S)]),
+       ylab='observed', xlab='predicted', main='Soil C ~ Litter wt * Frag')
   abline(0,1)
-  plot(predict(sirFullLMM.S), residuals(sirFullLMM.S), ylab='residuals', 
-       xlab='predicted', main='sirFullLMM residuals v/s predicted')
+  plot(predict(S.soilcLittWtLMM), residuals(S.soilcLittWtLMM), ylab='residuals', 
+       xlab='predicted', main='Soil C ~ Litter wt * Frag')
   abline(0,0)
-  qqnorm(residuals(sirFullLMM.S), main='sirFullLMM residuals')
-  qqline(residuals(sirFullLMM.S))
+  qqnorm(residuals(S.soilcLittWtLMM), main='Soil C ~ Litter wt * Frag: residuals Q-Q plot')
+  qqline(residuals(S.soilcLittWtLMM))
   
-  sirLittQualLMM.S <- lmer((SOIL.SIR.S) ~ LITTER.CN.RATIO.S + LITTER.P.S + 
-                           SITE.TYPE + (1|SITE.ID),
+  S.sirLittPOnlyLMM    <- lmer(SOIL.SIR.S ~ LITTER.P.S +
+                             (1|SITE.ID),
+                           data=cCycle.S, REML=FALSE)
+  S.sirLittCNOnlyLMM <- lmer(SOIL.SIR.S ~ LITTER.CN.RATIO.S + 
+                           (1|SITE.ID),
                          data=cCycle.S, REML=FALSE)
-  plot(predict(sirLittQualLMM.S), (cCycle.S$SOIL.SIR.S[!is.na(cCycle.S$SOIL.SIR.S)]),
-       ylab='y = (SIR.S)', xlab='predicted', main='sirLittQualLMM y v/s y_hat')
-  abline(0,1)
-  plot(predict(sirLittQualLMM.S), residuals(sirLittQualLMM.S), ylab='residuals', 
-       xlab='predicted', main='sirLittQualLMM residuals v/s predicted')
-  abline(0,0)
-  qqnorm(residuals(sirLittQualLMM.S), main='sirLittQualLMM residuals')
-  qqline(residuals(sirLittQualLMM.S))
+  S.sirLittWtOnlyLMM <- lmer(SOIL.SIR.S ~ LITTER.WT.S + 
+                           (1|SITE.ID),
+                         data=cCycle.S, REML=FALSE)
+  S.sirBasAreaOnlyLMM <- lmer(SOIL.SIR.S ~ BAS.AREA.S + 
+                            (1|SITE.ID),
+                          data=cCycle.S, REML=FALSE)
+  S.sirLittPLMM    <- lmer(SOIL.SIR.S ~ LITTER.P.S + SITE.TYPE +
+                             (1|SITE.ID),
+                               data=cCycle.S, REML=FALSE)
+  S.sirLittCNLMM <- lmer(SOIL.SIR.S ~ LITTER.CN.RATIO.S + SITE.TYPE + 
+                               (1|SITE.ID),
+                             data=cCycle.S, REML=FALSE)
+  S.sirLittWtLMM <- lmer(SOIL.SIR.S ~ LITTER.WT.S + SITE.TYPE + 
+                           (1|SITE.ID),
+                         data=cCycle.S, REML=FALSE)
+  S.sirBasAreaLMM <- lmer(SOIL.SIR.S ~ BAS.AREA.S + SITE.TYPE + 
+                            (1|SITE.ID),
+                          data=cCycle.S, REML=FALSE)
+  S.sirLittPnFragLMM <- lmer(SOIL.SIR.S ~ (LITTER.P.S*SITE.TYPE) +
+                                 (1|SITE.ID),
+                               data=cCycle.S, REML=FALSE)
+  S.sirLittCNnFragLMM <- lmer(SOIL.SIR.S ~ (LITTER.CN.RATIO.S*SITE.TYPE) +
+                                  (1|SITE.ID),
+                                data=cCycle.S, REML=FALSE)
+  S.sirLittWtnFragLMM <- lmer(SOIL.SIR.S ~ (LITTER.WT.S*SITE.TYPE) +
+                                  (1|SITE.ID),
+                                data=cCycle.S, REML=FALSE)
+  S.sirBasAreanFragLMM <- lmer(SOIL.SIR.S ~ (BAS.AREA.S*SITE.TYPE) +
+                                   (1|SITE.ID),
+                                 data=cCycle.S, REML=FALSE)
+  S.sirLittQualLMM <- lmer(SOIL.SIR.S ~ LITTER.CN.RATIO.S + LITTER.P.S + SITE.TYPE + 
+                                 (1|SITE.ID),
+                               data=cCycle.S, REML=FALSE)
+  S.sirStdBMassLMM <- lmer(SOIL.SIR.S ~ LITTER.WT.S + BAS.AREA.S + SITE.TYPE + 
+                               (1|SITE.ID),
+                             data=cCycle.S, REML=FALSE)
+  S.sirFullLMM     <- lmer(SOIL.SIR.S ~ LITTER.CN.RATIO.S + LITTER.P.S + LITTER.WT.S + 
+                               BAS.AREA.S + SITE.TYPE +
+                               (1|SITE.ID),
+                             data=cCycle.S, REML=FALSE)
+  summary(model.avg(S.sirLittCNLMM, S.sirLittPLMM,
+                    S.sirLittWtLMM, S.sirBasAreaLMM))
+  summary(model.avg(S.sirLittCNLMM, S.sirLittCNnFragLMM,
+                    S.sirLittPLMM, S.sirLittPnFragLMM,
+                    S.sirLittWtLMM, S.sirLittWtnFragLMM,
+                    S.sirBasAreaLMM, S.sirBasAreanFragLMM,
+                    S.sirLittPOnlyLMM, S.sirLittCNOnlyLMM,
+                    S.sirLittWtOnlyLMM, S.sirBasAreaOnlyLMM))
+  summary(model.avg(S.sirFullLMM, 
+                    S.sirStdBMassLMM, S.sirLittWtLMM, S.sirBasAreaLMM,
+                    S.sirLittQualLMM, S.sirLittCNLMM, S.sirLittPLMM, rank="AIC"))
   
+  par(mfrow = c(2,2))
+  plot(predict(S.sirLittWtLMM), (cCycle.S$LITTER.WT.S[!is.na(cCycle.S$SOIL.SIR.S)]),
+         ylab='observed', xlab='predicted', main='SIR ~ Litter wt * Frag')
+  abline(0,1)
+  plot(predict(S.sirLittWtLMM), residuals(S.sirLittWtLMM), ylab='residuals', 
+       xlab='predicted', main='SIR ~ Litter wt * Frag')
+  abline(0,0)
+  qqnorm(residuals(S.sirLittWtLMM), main='SIR ~ Litter wt * Frag: residuals Q-Q')
+  qqline(residuals(S.sirLittWtLMM))
+
+  
+  # Checking if all variables are normally distributed
   par(mfrow = c(4,2))
   qqnorm(cCycle$SOIL.C, main='Soil C')
   qqline(cCycle$SOIL.C)
@@ -488,7 +576,344 @@ library(ggplot2)
     geom_boxplot()+ ylab("Soil SIR (mu gm C-CO2 / hr gm)")
     
   multiplot(p25, p20, p21, p24, p26, p22, p23, cols=2)
+
+  # Comparing average values across FR and CT
+  soilcMeansPerSite <- cCycle %>% group_by(SITE.ID) %>% 
+    summarise(SITE.MEAN = mean(SOIL.C), SITE.TYPE=first(SITE.TYPE)) 
+  t.test(soilcMeansPerSite$SITE.MEAN~soilcMeansPerSite$SITE.TYPE)
+  soilcMeans <- soilcMeansPerSite %>% group_by(SITE.TYPE) %>%
+    summarise(MEAN=mean(SITE.MEAN), SE=sd(SITE.MEAN)/sqrt(n()))
+  ggplot(soilcMeans, aes(y=MEAN, x=SITE.TYPE, fill=SITE.TYPE)) + theme_classic() +
+    geom_bar(position="dodge", stat="identity", width=0.4) + guides(fill=F) +
+    geom_errorbar(aes(ymin=MEAN-(SE),
+                      ymax=MEAN+(SE)), width=.07,
+                  position=position_dodge(0.9)) +
+    scale_x_discrete(labels=
+                       c("Contiguous forests \n (N = 6 sites)", "Fragmented forests \n (N = 6 sites)")) +    
+    ylab("Soil %C \n") +
+    theme(legend.title=element_blank(),
+          axis.title.x=element_blank(), 
+          axis.ticks=element_blank(),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 18),
+          axis.text = element_text(size = 18)) +
+    scale_fill_grey(start=0.5)
+  ggsave("figs/SoilC_CTvsFRCompare.png")
+  soilcMeans <- bind_cols(data.frame(QUANT=c("Soil C", "Soil C")), soilcMeans)
+
+  sirMeansPerSite <- cCycle %>% group_by(SITE.ID) %>% 
+    summarise(SITE.MEAN = mean(SOIL.SIR, na.rm=T),
+              SITE.TYPE = first(SITE.TYPE))
+  t.test(sirMeansPerSite$SITE.MEAN~sirMeansPerSite$SITE.TYPE)
+  sirMeans <- sirMeansPerSite %>% group_by(SITE.TYPE) %>%
+    summarise(MEAN = mean(SITE.MEAN), SE = sd(SITE.MEAN)/sqrt(n()))
+  ggplot(sirMeans, aes(y=MEAN, x=SITE.TYPE, fill=SITE.TYPE)) + theme_classic() +
+    geom_bar(position="dodge", stat="identity", width=0.4) + guides(fill=F) +
+    geom_errorbar(aes(ymin=MEAN-(SE),
+                      ymax=MEAN+(SE)), width=.07,
+                  position=position_dodge(0.9)) +
+    scale_x_discrete(labels=
+                       c("Contiguous forests \n (N = 6 sites)", "Fragmented forests \n (N = 6 sites)")) +    
+#     ylab(expression('Soil SIR ('*mu gm ~C-CO[2]~ g^{-1} dry wt. soil hr^{-1}*')')) +
+    ylab("Soil SIR \n (micro gm C-CO2 \n per gm dry wt. soil per hr) \n") +
+    theme(legend.title=element_blank(),
+          axis.title.x=element_blank(), 
+          axis.ticks=element_blank(),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 18),
+          axis.text = element_text(size = 18)) +
+    scale_fill_grey(start=0.5)
+  ggsave("figs/SIR_CTvsFRCompare.png")
+  sirMeans <- bind_cols(data.frame(QUANT=c("Soil SIR", "Soil SIR")), sirMeans)
+
+  soilCompare <- bind_rows(soilcMeans, sirMeans)
+
+  littWtMeansPerSite <- cCycle %>% group_by(SITE.ID) %>% 
+    summarise(SITE.MEAN = mean(LITTER.WT), SITE.TYPE=first(SITE.TYPE)) 
+  t.test(littWtMeansPerSite$SITE.MEAN~littWtMeansPerSite$SITE.TYPE)
+  littWtMeans <- littWtMeansPerSite %>% group_by(SITE.TYPE) %>%
+    summarise(MEAN=mean(SITE.MEAN), SE=sd(SITE.MEAN)/sqrt(n()))
+  ggplot(littWtMeans, aes(y=MEAN, x=SITE.TYPE, fill=SITE.TYPE)) + theme_classic() +
+    geom_bar(position="dodge", stat="identity", width=0.4) + guides(fill=F) +
+    geom_errorbar(aes(ymin=MEAN-(SE),
+                      ymax=MEAN+(SE)), width=.07,
+                  position=position_dodge(0.9)) +
+    scale_x_discrete(labels=
+                       c("Contiguous \n (N = 6 sites)", "Fragment \n (N = 6 sites)")) +    
+    ylab("Litter weight (gm per m.sq)\n") +
+    theme(legend.title=element_blank(),
+          axis.title.x=element_blank(), 
+          axis.ticks=element_blank(),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 24),
+          axis.text = element_text(size = 24)) +
+    scale_fill_grey(start=0.5)
+  ggsave("figs/LittWt_CTvsFRCompare.png")
   
+  littCNMeansPerSite <- cCycle %>% group_by(SITE.ID) %>% 
+    summarise(SITE.MEAN = mean(LITTER.CN.RATIO), SITE.TYPE=first(SITE.TYPE)) 
+  t.test(littCNMeansPerSite$SITE.MEAN~littCNMeansPerSite$SITE.TYPE)
+  littCNMeans <- littCNMeansPerSite %>% group_by(SITE.TYPE) %>%
+    summarise(MEAN=mean(SITE.MEAN), SE=sd(SITE.MEAN)/sqrt(n()))
+  ggplot(littCNMeans, aes(y=MEAN, x=SITE.TYPE, fill=SITE.TYPE)) + theme_classic() +
+    geom_bar(position="dodge", stat="identity", width=0.4) + guides(fill=F) +
+    geom_errorbar(aes(ymin=MEAN-(SE),
+                      ymax=MEAN+(SE)), width=.07,
+                  position=position_dodge(0.9)) +
+    scale_x_discrete(labels=
+                       c("Contiguous \n (N = 6 sites)", "Fragment \n (N = 6 sites)")) +    
+    ylab("Litter C/N \n") +
+    theme(legend.title=element_blank(),
+          axis.title.x=element_blank(), 
+          axis.ticks=element_blank(),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 24),
+          axis.text = element_text(size = 24)) +
+    scale_fill_grey(start=0.5)
+  ggsave("figs/LittCN_CTvsFRCompare.png")
+
+  basAreaMeansPerSite <- cCycle %>% group_by(SITE.ID) %>% 
+    summarise(SITE.MEAN = mean(LITTER.CN.RATIO), SITE.TYPE=first(SITE.TYPE)) 
+  t.test(basAreaMeansPerSite$SITE.MEAN~basAreaMeansPerSite$SITE.TYPE)
+  basAreaMeans <- basAreaMeansPerSite %>% group_by(SITE.TYPE) %>%
+    summarise(MEAN=mean(SITE.MEAN), SE=sd(SITE.MEAN)/sqrt(n()))
+  ggplot(basAreaMeans, aes(y=MEAN, x=SITE.TYPE, fill=SITE.TYPE)) + theme_classic() +
+    geom_bar(position="dodge", stat="identity", width=0.4) + guides(fill=F) +
+    geom_errorbar(aes(ymin=MEAN-(SE),
+                      ymax=MEAN+(SE)), width=.07,
+                  position=position_dodge(0.9)) +
+    scale_x_discrete(labels=
+                       c("Contiguous \n (N = 6 sites)", "Fragment \n (N = 6 sites)")) +    
+    ylab("Basal area (m. sq. per ha) \n") +
+    theme(legend.title=element_blank(),
+          axis.title.x=element_blank(), 
+          axis.ticks=element_blank(),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 24),
+          axis.text = element_text(size = 24)) +
+    scale_fill_grey(start=0.5)
+  ggsave("figs/BasArea_CTvsFRCompare.png")
+
+  littPMeansPerSite <- cCycle %>% group_by(SITE.ID) %>% 
+    summarise(SITE.MEAN = mean(LITTER.P), SITE.TYPE=first(SITE.TYPE)) 
+  t.test(littPMeansPerSite$SITE.MEAN~littPMeansPerSite$SITE.TYPE)
+  littPMeans <- littPMeansPerSite %>% group_by(SITE.TYPE) %>%
+    summarise(MEAN=mean(SITE.MEAN), SE=sd(SITE.MEAN)/sqrt(n()))
+  ggplot(littPMeans, aes(y=MEAN, x=SITE.TYPE, fill=SITE.TYPE)) + theme_classic() +
+    geom_bar(position="dodge", stat="identity", width=0.4) + guides(fill=F) +
+    geom_errorbar(aes(ymin=MEAN-(SE),
+                      ymax=MEAN+(SE)), width=.07,
+                  position=position_dodge(0.9)) +
+    scale_x_discrete(labels=
+                       c("Contiguous \n (N = 6 sites)", "Fragment \n (N = 6 sites)")) +    
+    ylab("Litter %P \n") +
+    theme(legend.title=element_blank(),
+          axis.title.x=element_blank(), 
+          axis.ticks=element_blank(),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 24),
+          axis.text = element_text(size = 24)) +
+    scale_fill_grey(start=0.5)
+  ggsave("figs/LittP_CTvsFRCompare.png")
+
+  # Responses, site-wise boxplots
+  ggplot(cCycle, aes(y=SOIL.C, x=SITE.ID, fill=SITE.TYPE)) +
+    theme_classic() +
+    geom_boxplot()+ ylab("Soil %C \n") + xlab("\n Site ID") +
+    theme(legend.title=element_blank(),
+          legend.text = element_text(size = 15),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 18),
+          axis.text = element_text(size = 15),
+          axis.text.x = element_text(angle=45, hjust=1)) +
+    scale_fill_grey(labels=c("Contiguous", "Fragment"), start=0.5)
+  ggsave("figs/SoilCvsSites.png")
+  ggplot(cCycle, aes(y=SOIL.SIR, x=SITE.ID, fill=SITE.TYPE)) +
+    theme_classic() +
+    geom_boxplot() +
+    ylab("Soil SIR \n (micro gm C-CO2 \n per gm dry wt. soil per hr) \n") +
+    xlab("\n Site ID") +
+    theme(legend.title=element_blank(),
+          legend.text = element_text(size = 15),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 18),
+          axis.text = element_text(size = 15),
+          axis.text.x = element_text(angle=45, hjust=1)) +
+    scale_fill_grey(labels=c("Contiguous", "Fragment"), start=0.5)
+  ggsave("figs/SIRvsSites.png")
+
+  # To plot SIR and soil C v/s litter C/N and P, but site-wise with SEs
+  soilNLittMeans <- cCycle %>% group_by(SITE.ID) %>% 
+    summarise(SITE.TYPE=first(SITE.TYPE),
+              SOIL.C.MEAN = mean(SOIL.C),
+              SOIL.C.SE = sd(SOIL.C)/sqrt(n()),
+              SIR.MEAN = mean(SOIL.SIR, na.rm=T),
+              SIR.SE = sd(SOIL.SIR, na.rm=T)/sqrt(n()),
+              LITTER.CN.MEAN = mean(LITTER.CN.RATIO),
+              LITTER.CN.SE = sd(LITTER.CN.RATIO)/sqrt(n()),
+              LITTER.P.MEAN = mean(LITTER.P),
+              LITTER.P.SE = sd(LITTER.P)/sqrt(n()),
+              LITTER.WT.MEAN = mean(LITTER.WT),
+              LITTER.WT.SE = sd(LITTER.WT)/sqrt(n()),
+              BAS.AREA.MEAN = mean(BAS.AREA),
+              BAS.AREA.SE = sd(BAS.AREA)/sqrt(n()))
+  ggplot(soilNLittMeans, aes(y=SOIL.C.MEAN, x=LITTER.CN.MEAN,
+                                 color=SITE.TYPE)) + 
+    theme_classic() + geom_point(size=4) +
+    geom_errorbarh(aes(xmin=LITTER.CN.MEAN-(LITTER.CN.SE),
+                       xmax=LITTER.CN.MEAN+(LITTER.CN.SE))) + 
+    geom_errorbar(aes(ymin=SOIL.C.MEAN-(SOIL.C.SE),
+                      ymax=SOIL.C.MEAN+(SOIL.C.SE)), width=0) +
+    xlab("\n Litter C/N") + ylab("Soil %C \n") +
+    theme(legend.title=element_blank(),
+          legend.text = element_text(size = 15),
+          legend.position = c(0.85, 0.95),
+          #legend.background = element_rect(color="grey"),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 20),
+          axis.text = element_text(size = 18)) +
+    scale_color_grey(labels=c("Contiguous", "Fragment"))
+  ggsave("figs/SoilCvsLitterCN_SiteAvgs.png")
+  ggplot(soilNLittMeans, aes(y=SIR.MEAN, x=LITTER.CN.MEAN,
+                                 color=SITE.TYPE)) + 
+    theme_classic() + geom_point(size=4) +
+    geom_errorbarh(aes(xmin=LITTER.CN.MEAN-(LITTER.CN.SE),
+                       xmax=LITTER.CN.MEAN+(LITTER.CN.SE))) + 
+    geom_errorbar(aes(ymin=SIR.MEAN-(SIR.SE),
+                      ymax=SIR.MEAN+(SIR.SE)), width=0) +
+    xlab("\n Litter C/N") +
+    ylab("Soil SIR \n (micro gm C-CO2 \n per gm dry wt. soil per hr) \n") +
+    theme(legend.title=element_blank(),
+          legend.text = element_text(size = 15),
+          legend.position = c(0.85, 0.55),
+          #legend.background = element_rect(color="grey"),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 20),
+          axis.text = element_text(size = 18)) +
+    scale_color_grey(labels=c("Contiguous", "Fragment"))
+  ggsave("figs/SIRvsLitterCN_SiteAvgs.png")
+  ggplot(soilNLittMeans, aes(y=SOIL.C.MEAN, x=LITTER.P.MEAN,
+                                 color=SITE.TYPE)) + 
+    theme_classic() + geom_point(size=4) +
+    geom_errorbarh(aes(xmin=LITTER.P.MEAN-(LITTER.P.SE),
+                       xmax=LITTER.P.MEAN+(LITTER.P.SE))) + 
+    geom_errorbar(aes(ymin=SOIL.C.MEAN-(SOIL.C.SE),
+                      ymax=SOIL.C.MEAN+(SOIL.C.SE)), width=0) +
+    xlab("\n Litter %P") + ylab("Soil %C \n") +
+    theme(legend.title=element_blank(),
+          legend.text = element_text(size = 15),
+          legend.position = c(0.85, 0.15),
+          #legend.background = element_rect(color="grey"),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 20),
+          axis.text = element_text(size = 18)) +
+    scale_color_grey(labels=c("Contiguous", "Fragment"))
+  ggsave("figs/SoilCvsLitterP_SiteAvgs.png")
+  ggplot(soilNLittMeans, aes(y=SIR.MEAN, x=LITTER.P.MEAN,
+                                 color=SITE.TYPE)) + 
+    theme_classic() + geom_point(size=4) +
+    geom_errorbarh(aes(xmin=LITTER.P.MEAN-(LITTER.P.SE),
+                       xmax=LITTER.P.MEAN+(LITTER.P.SE))) + 
+    geom_errorbar(aes(ymin=SIR.MEAN-(SIR.SE),
+                      ymax=SIR.MEAN+(SIR.SE)), width=0) +
+    xlab("\n Litter %P") +
+    ylab("Soil SIR \n (micro gm C-CO2 \n per gm dry wt. soil per hr) \n") +
+    theme(legend.title=element_blank(),
+          legend.text = element_text(size = 15),
+          legend.position = c(0.85, 0.25),
+          #legend.background = element_rect(color="grey"),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 20),
+          axis.text = element_text(size = 18)) +
+    scale_color_grey(labels=c("Contiguous", "Fragment"))
+  ggsave("figs/SIRvsLitterP_SiteAvgs.png")
+  multiplot(p91, p93, p92, p94, cols=2)
+  ggplot(soilNLittMeans, aes(y=SOIL.C.MEAN, x=LITTER.WT.MEAN,
+                             color=SITE.TYPE)) + 
+    theme_classic() + geom_point(size=4) +
+    geom_errorbarh(aes(xmin=LITTER.WT.MEAN-(LITTER.WT.SE),
+                       xmax=LITTER.WT.MEAN+(LITTER.WT.SE))) + 
+    geom_errorbar(aes(ymin=SOIL.C.MEAN-(SOIL.C.SE),
+                      ymax=SOIL.C.MEAN+(SOIL.C.SE)), width=0) +
+    xlab("\n Litter weight (gm per m.sq)") + ylab("Soil %C \n") +
+    theme(legend.title=element_blank(),
+          legend.text = element_text(size = 15),
+          legend.position = c(0.85, 0.9),
+          #legend.background = element_rect(color="grey"),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 20),
+          axis.text = element_text(size = 18)) +
+    scale_color_grey(labels=c("Contiguous", "Fragment"))
+  ggsave("figs/SoilCvsLitterWt_SiteAvgs.png")
+  ggplot(soilNLittMeans, aes(y=SIR.MEAN, x=LITTER.WT.MEAN,
+                             color=SITE.TYPE)) + 
+    theme_classic() + geom_point(size=4) +
+    geom_errorbarh(aes(xmin=LITTER.WT.MEAN-(LITTER.WT.SE),
+                       xmax=LITTER.WT.MEAN+(LITTER.WT.SE))) + 
+    geom_errorbar(aes(ymin=SIR.MEAN-(SIR.SE),
+                      ymax=SIR.MEAN+(SIR.SE)), width=0) +
+    xlab("\n Litter weight (gm per m.sq)") +
+    ylab("Soil SIR \n (micro gm C-CO2 \n per gm dry wt. soil per hr) \n") +
+    theme(legend.title=element_blank(),
+          legend.text = element_text(size = 15),
+          legend.position = c(0.85, 0.9),
+          #legend.background = element_rect(color="grey"),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 20),
+          axis.text = element_text(size = 18)) +
+    scale_color_grey(labels=c("Contiguous", "Fragment"))
+  ggsave("figs/SIRvsLitterWt_SiteAvgs.png")
+  ggplot(soilNLittMeans, aes(y=SOIL.C.MEAN, x=BAS.AREA.MEAN,
+                             color=SITE.TYPE)) + 
+    theme_classic() + geom_point(size=4) +
+    geom_errorbarh(aes(xmin=BAS.AREA.MEAN-(BAS.AREA.SE),
+                       xmax=BAS.AREA.MEAN+(BAS.AREA.SE))) + 
+    geom_errorbar(aes(ymin=SOIL.C.MEAN-(SOIL.C.SE),
+                      ymax=SOIL.C.MEAN+(SOIL.C.SE)), width=0) +
+    xlab("\n Basal area (m sq. per ha)") + ylab("Soil %C \n") +
+    theme(legend.title=element_blank(),
+          legend.text = element_text(size = 15),
+          legend.position = c(0.9, 0.9),
+          #legend.background = element_rect(color="grey"),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 20),
+          axis.text = element_text(size = 18)) +
+    scale_color_grey(labels=c("Contiguous", "Fragment"))
+  ggsave("figs/SoilCvsBasArea_SiteAvgs.png")
+  ggplot(soilNLittMeans, aes(y=SIR.MEAN, x=BAS.AREA.MEAN,
+                             color=SITE.TYPE)) + 
+    theme_classic() + geom_point(size=4) +
+    geom_errorbarh(aes(xmin=BAS.AREA.MEAN-(BAS.AREA.SE),
+                       xmax=BAS.AREA.MEAN+(BAS.AREA.SE))) + 
+    geom_errorbar(aes(ymin=SIR.MEAN-(SIR.SE),
+                      ymax=SIR.MEAN+(SIR.SE)), width=0) +
+    xlab("\n Basal area (m sq. per ha)") +
+    ylab("Soil SIR \n (micro gm C-CO2 \n per gm dry wt. soil per hr) \n") +
+    theme(legend.title=element_blank(),
+          legend.text = element_text(size = 15),
+          legend.position = c(0.85, 0.5),
+          #legend.background = element_rect(color="grey"),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 20),
+          axis.text = element_text(size = 18)) +
+    scale_color_grey(labels=c("Contiguous", "Fragment"))
+  ggsave("figs/SIRvsBasArea_SiteAvgs.png")
   # To see if log-transform helps with normality assumption of variables
   p31 <- ggplot(cCycle, aes(x=log(LITTER.CN.RATIO), y=log(SOIL.SIR), color=SITE.TYPE)) +
     geom_point(size=2) + xlab("log(Litter C/N)") + ylab("log(Soil SIR)")
@@ -537,6 +962,46 @@ library(ggplot2)
   # To see if basal area and tip are correlated
   ggplot(cCycle, aes(x=TIP, y=BAS.AREA, color=SITE.TYPE)) +
     geom_point(size=2) + stat_smooth(method=lm)
+
+  # Comparing community avg v/s my sample avg litter qual
+  sampleAvgLittQual <- cCycle %>% filter(SITE.ID == "CT1" |       # Kokka 1
+                                           SITE.ID == "CT2" |     # Kokka 2
+                                           SITE.ID == "FR1" |     # Rudraguppe
+                                           SITE.ID == "FR3" |     # Arji
+                                           SITE.ID == "FR6") %>%  # Arapattu
+    group_by(SITE.ID) %>% 
+    summarise(MEAN= mean(LITTER.CN.RATIO, na.rm=T),
+              SE=sd(LITTER.CN.RATIO, na.rm=T)/sqrt(n()),
+              SITE.TYPE=first(SITE.TYPE)) %>% group_by(SITE.TYPE) %>%
+    summarise(LITT.CTON.MEAN=mean(MEAN), 
+              LITT.CTON.SE=sd(MEAN, na.rm=T)/sqrt(n()))
+  levels(sampleAvgLittQual$SITE.TYPE)[levels(sampleAvgLittQual$SITE.TYPE)=="FR"] <-
+    "FRAGMENT"
+  levels(sampleAvgLittQual$SITE.TYPE)[levels(sampleAvgLittQual$SITE.TYPE)=="CT"] <-
+    "CONTROL"
+  sampleAvgLittQual <- bind_cols(data.frame(NAME=c("Sample Avg.", "Sample Avg.")),
+                                 sampleAvgLittQual)
+  littQualCompare <- bind_rows(commAvgLittQual, sampleAvgLittQual)
+  ggplot(littQualCompare, aes(y=LITT.CTON.MEAN, x=NAME, fill=SITE.TYPE)) +
+    theme_classic() +
+    geom_bar(position="dodge", stat="identity") +
+    geom_errorbar(aes(ymin=LITT.CTON.MEAN-(LITT.CTON.SE),
+                      ymax=LITT.CTON.MEAN+(LITT.CTON.SE)), width=.1,
+                  position=position_dodge(0.9)) +
+    xlab("Estimate type") + ylab("Average litter C/N \n") +
+    theme(legend.title=element_blank(),
+          legend.text = element_text(size = 15),
+          legend.position = c(0.15, 0.9),
+          axis.title.x=element_blank(), 
+          axis.ticks=element_blank(),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 18),
+          axis.text = element_text(size = 18)) +
+    scale_x_discrete(labels=
+                       c("Community \n weighted-average", "Sample average")) +
+    scale_fill_grey(labels=c("Contiguous", "Fragment"), start=0.5)
+  ggsave("figs/LittQualCompare_CommVsSampleAvg.png")
   
 #   cCycle.l1g <- cCycle %>% group_by(SITE.TYPE) %>%
 #     do(glance(fitl1 <- lm(SOIL.SIR ~ LITTER.CN.RATIO+LITTER.N, data=., na.action=na.omit)))
@@ -561,28 +1026,72 @@ library(ggplot2)
     ggplot(aes(x=Litter.CtoN, y=Soil.C, color=Forest.type)) + geom_point(size=2)
 
   # Size class-wise plotting of tree community
+  treeDensS1 <- filter(treeDensBySizeClass, SIZE.CLASS=="S1")
+  t.test(treeDensS1$TREE.DENS ~ treeDensS1$SITE.TYPE)
+  t.test(treeDensS1$PROP.STEMS ~ treeDensS1$SITE.TYPE)
+  treeDensS2 <- filter(treeDensBySizeClass, SIZE.CLASS=="S2")
+  t.test(treeDensS2$TREE.DENS ~ treeDensS2$SITE.TYPE)
+  t.test(treeDensS2$PROP.STEMS ~ treeDensS2$SITE.TYPE)
+  treeDensS3 <- filter(treeDensBySizeClass, SIZE.CLASS=="S3")
+  t.test(treeDensS3$TREE.DENS ~ treeDensS3$SITE.TYPE)
+  t.test(treeDensS3$PROP.STEMS ~ treeDensS3$SITE.TYPE)
+  treeDensS4 <- filter(treeDensBySizeClass, SIZE.CLASS=="S4")
+  t.test(treeDensS4$TREE.DENS ~ treeDensS4$SITE.TYPE)
+  t.test(treeDensS4$PROP.STEMS ~ treeDensS4$SITE.TYPE)
+  treeDensS5 <- filter(treeDensBySizeClass, SIZE.CLASS=="S5")
+  t.test(treeDensS5$TREE.DENS ~ treeDensS5$SITE.TYPE)
+  t.test(treeDensS5$PROP.STEMS ~ treeDensS5$SITE.TYPE)
+
   p41 <- ggplot(treeDensMeans, aes(y=MEAN, x=SIZE.CLASS, fill=SITE.TYPE)) +
+    theme_classic() +
     geom_bar(position="dodge", stat="identity") +
-    geom_errorbar(aes(ymin=MEAN-SE, ymax=MEAN+SE), width=.1, position=position_dodge(0.9)) +
+    geom_errorbar(aes(ymin=MEAN-SE, ymax=MEAN+SE), width=.2, position=position_dodge(0.9)) +
     scale_x_discrete(labels=c(paste(binBounds[1]*100,binBounds[2]*100, sep=" - "),
                               paste(binBounds[2]*100,binBounds[3]*100, sep=" - "),
                               paste(binBounds[3]*100,binBounds[4]*100, sep=" - "),
                               paste(binBounds[4]*100,binBounds[5]*100, sep=" - "),
                               paste(binBounds[5]*100,binBounds[6]*100, sep=" - "))) +
-    xlab("DBH (cm) class") + ylab("Stems/ha") + ylim(0,200) +
-    theme(legend.position=c(0.9, 0.8), legend.title=element_blank()) +
-    scale_fill_hue(labels=c("Contiguous", "Fragment"))
+    xlab("\n DBH (cm) class") + ylab("Stems/ha \n") + ylim(0,200) +
+    theme(legend.position=c(0.85, 0.85),
+          legend.title=element_blank(),
+          legend.text = element_text(size = 15),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 18),
+          axis.text = element_text(size = 15)) +
+    annotate("text", x = treeDensMeans$SIZE.CLASS[1], 
+             y = treeDensMeans$MEAN[1] + (1.5*treeDensMeans$SE[1]),
+             label = "*", size=8) +
+    annotate("text", x = treeDensMeans$SIZE.CLASS[2], 
+             y = treeDensMeans$MEAN[2] + (1.5*treeDensMeans$SE[2]),
+             label = "*", size=8) +
+    annotate("text", x = treeDensMeans$SIZE.CLASS[3], 
+             y = treeDensMeans$MEAN[3] + (1.5*treeDensMeans$SE[3]),
+             label = "*", size=8) +
+    scale_fill_grey(labels=c("Contiguous", "Fragment"), start=0.5)
+  ggsave("figs/TreeSizeClassDistr_StemsPerHa.png")
   p42 <- ggplot(treeStemPropsMeans, aes(y=MEAN, x=SIZE.CLASS, fill=SITE.TYPE)) +
+    theme_classic() +
     geom_bar(position="dodge", stat="identity") + 
-    geom_errorbar(aes(ymin=MEAN-SE, ymax=MEAN+SE), width=.1, position=position_dodge(0.9)) +
+    geom_errorbar(aes(ymin=MEAN-SE, ymax=MEAN+SE), width=.2, position=position_dodge(0.9)) +
     scale_x_discrete(labels=c(paste(binBounds[1]*100,binBounds[2]*100, sep=" - "),
                               paste(binBounds[2]*100,binBounds[3]*100, sep=" - "),
                               paste(binBounds[3]*100,binBounds[4]*100, sep=" - "),
                               paste(binBounds[4]*100,binBounds[5]*100, sep=" - "),
                               paste(binBounds[5]*100,binBounds[6]*100, sep=" - "))) +
-    xlab("DBH (cm) class") + ylab("Proportion of stems") + ylim(0,0.4) +
-    theme(legend.position = c(0.9, 0.8), legend.title=element_blank()) +
-    scale_fill_hue(labels=c("Contiguous", "Fragment"))
+    xlab("\n DBH (cm) class") + ylab("Proportion of stems \n") + ylim(0,0.4) +
+    theme(legend.position=c(0.85, 0.85),
+          legend.title=element_blank(),
+          legend.text = element_text(size = 15),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 18),
+          axis.text = element_text(size = 15)) +
+    annotate("text", x = treeStemPropsMeans$SIZE.CLASS[9], 
+             y = treeStemPropsMeans$MEAN[9] + (1.5*treeStemPropsMeans$SE[9]),
+             label = "**", size=8) +
+    scale_fill_grey(labels=c("Contiguous", "Fragment"), start=0.5)
+  ggsave("figs/TreeSizeClassDistr_PropStems.png")
   multiplot(p41, p42, cols=1)
 }
 
