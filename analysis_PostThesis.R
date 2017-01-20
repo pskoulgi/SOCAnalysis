@@ -519,6 +519,69 @@ library(ggplot2)
               PROP.LARGE.TREES.MEAN = mean(PROP.LARGE.TREES),
               PROP.LARGE.TREES.SE = sd(PROP.LARGE.TREES)/sqrt(n()))
   
+  ggplot(soilNLittMeans, aes(y=LITTER.WT.MEAN, x=BAS.AREA.MEAN,
+                             color=SITE.TYPE)) + 
+    theme_classic() + geom_point(size=4) +
+    geom_text(aes(label=paste(SITE.NAME)),
+              size=5, hjust=0, vjust=0, nudge_x=1, parse=TRUE) +    
+    geom_errorbarh(aes(xmin=BAS.AREA.MEAN-(BAS.AREA.SE),
+                       xmax=BAS.AREA.MEAN+(BAS.AREA.SE))) + 
+    geom_errorbar(aes(ymin=LITTER.WT.MEAN-(LITTER.WT.SE),
+                      ymax=LITTER.WT.MEAN+(LITTER.WT.SE)), width=0) +
+    xlab("\n Basal area (m sq. per ha)") +
+    ylab("\n Litter weight (gm per m.sq) \n") +
+    theme(legend.title=element_blank(),
+          legend.text = element_text(size = 15),
+          legend.position = c(0.85, 0.5),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 20),
+          axis.text = element_text(size = 18)) +
+    scale_color_grey(labels=c("Contiguous", "Fragment"), end=0.6)
+  #ggsave("figs/LittWtvsBasArea_SiteAvgs.png")
+  
+  ggplot(soilNLittMeans, aes(y=LITTER.WT.MEAN, x=PROP.LARGE.TREES.MEAN,
+                             color=SITE.TYPE)) + 
+    theme_classic() + geom_point(size=4) +
+    geom_text(aes(label=paste(SITE.NAME)),
+              size=5, hjust=0, vjust=0, nudge_x=.005, parse=TRUE) +    
+    geom_errorbarh(aes(xmin=PROP.LARGE.TREES.MEAN-(PROP.LARGE.TREES.SE),
+                       xmax=PROP.LARGE.TREES.MEAN+(PROP.LARGE.TREES.SE))) + 
+    geom_errorbar(aes(ymin=LITTER.WT.MEAN-(LITTER.WT.SE),
+                      ymax=LITTER.WT.MEAN+(LITTER.WT.SE)), width=0) +
+    xlab("\n Proportion of large trees") +
+    ylab("\n Litter weight (gm per m.sq) \n") +
+    theme(legend.title=element_blank(),
+          legend.text = element_text(size = 15),
+          legend.position = c(0.85, 0.5),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 20),
+          axis.text = element_text(size = 18)) +
+    scale_color_grey(labels=c("Contiguous", "Fragment"), end=0.6)
+  #ggsave("figs/LittWtvsPropLgTr_SiteAvgs.png")
+  
+  ggplot(soilNLittMeans, aes(y=LITTER.WT.MEAN, x=LARGE.TREE.BA.FRAC.MEAN,
+                             color=SITE.TYPE)) + 
+    theme_classic() + geom_point(size=4) +
+    geom_text(aes(label=paste(SITE.NAME)),
+              size=5, hjust=0, vjust=0, nudge_x=.005, parse=TRUE) +    
+    geom_errorbarh(aes(xmin=LARGE.TREE.BA.FRAC.MEAN-(LARGE.TREE.BA.FRAC.SE),
+                       xmax=LARGE.TREE.BA.FRAC.MEAN+(LARGE.TREE.BA.FRAC.SE))) + 
+    geom_errorbar(aes(ymin=LITTER.WT.MEAN-(LITTER.WT.SE),
+                      ymax=LITTER.WT.MEAN+(LITTER.WT.SE)), width=0) +
+    xlab("\n Proportion of basal area by large trees") +
+    ylab("\n Litter weight (gm per m.sq) \n") +
+    theme(legend.title=element_blank(),
+          legend.text = element_text(size = 15),
+          legend.position = c(0.85, 0.5),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 20),
+          axis.text = element_text(size = 18)) +
+    scale_color_grey(labels=c("Contiguous", "Fragment"), end=0.6)
+  #ggsave("figs/LittWtvsLgTrBAFrac_SiteAvgs.png")
+    
   ggplot(filter(soilNLittMeans, SITE.TYPE=="CT"),
          aes(y=SOIL.C.MEAN, x=LITTER.WT.MEAN)) + 
     theme_classic() + 
@@ -672,6 +735,27 @@ library(ggplot2)
     scale_color_grey(labels=c("Contiguous", "Fragment"))
   #ggsave("figs/SoilCvsLitterWt_SiteAvgs.png")
   
+  ggplot(soilNLittMeans, aes(y=SOIL.C.MEAN, x=LITTER.WT.MEAN,
+                             color=SITE.TYPE)) + 
+    theme_classic() + geom_point(size=4) +
+    geom_text(aes(label=paste(SITE.NAME)),
+              size=5, hjust=0, vjust=0, nudge_x=1, parse=TRUE) +    
+    geom_errorbarh(aes(xmin=LITTER.WT.MEAN-(LITTER.WT.SE),
+                       xmax=LITTER.WT.MEAN+(LITTER.WT.SE))) + 
+    geom_errorbar(aes(ymin=SOIL.C.MEAN-(SOIL.C.SE),
+                      ymax=SOIL.C.MEAN+(SOIL.C.SE)), width=0) +
+    xlab("\n Litter weight (gm per m.sq)") + ylab("Soil %C \n") +
+    theme(legend.title=element_blank(),
+          legend.text = element_text(size = 15),
+          legend.position = c(0.85, 0.9),
+          #legend.background = element_rect(color="grey"),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 20),
+          axis.text = element_text(size = 18)) +
+    scale_color_grey(labels=c("Contiguous", "Fragment"), end=0.6)
+  #ggsave("figs/SoilCvsLitterWt_SiteAvgs_Labels.png")
+  
   ggplot(soilNLittMeans, aes(y=SOIL.C.MEAN, x=BAS.AREA.MEAN,
                              color=SITE.TYPE)) + 
     theme_classic() + geom_point(size=4) +
@@ -754,6 +838,27 @@ library(ggplot2)
     scale_color_grey(labels=c("Contiguous", "Fragment"))
   #ggsave("figs/SIRvsLitterWt_SiteAvgs.png")
   
+  ggplot(soilNLittMeans, aes(y=SIR.MEAN, x=LITTER.WT.MEAN,
+                             color=SITE.TYPE)) + 
+    theme_classic() + geom_point(size=4) +
+    geom_text(aes(label=paste(SITE.NAME)),
+              size=5, hjust=0, vjust=0, nudge_x=1, parse=TRUE) +    
+    geom_errorbarh(aes(xmin=LITTER.WT.MEAN-(LITTER.WT.SE),
+                       xmax=LITTER.WT.MEAN+(LITTER.WT.SE))) + 
+    geom_errorbar(aes(ymin=SIR.MEAN-(SIR.SE),
+                      ymax=SIR.MEAN+(SIR.SE)), width=0) +
+    xlab("\n Litter weight (gm per m.sq)") +
+    ylab("Soil SIR \n (micro gm C-CO2 \n per gm dry wt. soil per hr) \n") +
+    theme(legend.title=element_blank(),
+          legend.text = element_text(size = 15),
+          legend.position = c(0.85, 0.9),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 20),
+          axis.text = element_text(size = 18)) +
+    scale_color_grey(labels=c("Contiguous", "Fragment"), end=0.6)
+  #ggsave("figs/SIRvsLitterWt_SiteAvgs_Labels.png")
+  
   ggplot(soilNLittMeans, aes(y=SIR.MEAN, x=BAS.AREA.MEAN,
                              color=SITE.TYPE)) + 
     theme_classic() + geom_point(size=4) +
@@ -805,6 +910,24 @@ library(ggplot2)
   S.soilcBasAreaIntFragLMM <- lmer(SOIL.C.S ~ (BAS.AREA.S * SITE.TYPE) + 
                                               (1|SITE.ID),
                                    data=cCycle.S, REML=FALSE)
+  
+  ggplot(cCycle.S, aes(y=SOIL.C.S, x=LITTER.WT.S,
+                             color=SITE.ID)) + 
+    theme_classic() + geom_point(size=3) +
+    geom_line(aes(y = predict(S.soilcLittWtIntFragLMM)), size = 1) +
+    ggtitle("(Litter weight * frag)") +
+    xlab("\n Litter weight") +
+    ylab("Soil %C \n") +
+    theme(plot.title = element_text(size=20),
+          legend.title=element_blank(),
+          legend.text = element_text(size = 15),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 20),
+          axis.text = element_text(size = 18)) +
+    scale_color_discrete(labels=as.character(soilNLittMeans$SITE.NAME))
+  #ggsave("figs/SoilCvsLitterWt_FragInt_ModelFitPlots.png")
+  
   S.soilcLittPLMM <- lmer(SOIL.C.S ~ LITTER.P.S + SITE.TYPE +
                                      (1|SITE.ID),
                           data=cCycle.S, REML=FALSE)
@@ -817,6 +940,23 @@ library(ggplot2)
   S.soilcBasAreaLMM <- lmer(SOIL.C.S ~ BAS.AREA.S + SITE.TYPE + 
                                        (1|SITE.ID),
                             data=cCycle.S, REML=FALSE)
+  
+  ggplot(cCycle.S, aes(y=SOIL.C.S, x=LITTER.WT.S,
+                       color=SITE.ID)) + 
+    theme_classic() + geom_point(size=3) +
+    geom_line(aes(y = predict(S.soilcLittWtLMM)), size = 1) +
+    ggtitle("(Litter weight + frag)") +
+    xlab("\n Litter weight") +
+    ylab("Soil %C \n") +
+    theme(plot.title = element_text(size=20),
+          legend.title=element_blank(),
+          legend.text = element_text(size = 15),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 20),
+          axis.text = element_text(size = 18)) +
+    scale_color_discrete(labels=as.character(soilNLittMeans$SITE.NAME))
+  #ggsave("figs/SoilCvsLitterWt_FragNoInt_ModelFitPlots.png")
   
   library(MuMIn)
   summary(model.avg(S.soilcLittCNLMM, S.soilcLittCNIntFragLMM,
@@ -872,6 +1012,25 @@ library(ggplot2)
   S.sirBasAreaIntFragLMM <- lmer(SOIL.SIR.S ~ (BAS.AREA.S * SITE.TYPE) + 
                                               (1|SITE.ID),
                                  data=cCycle.S, REML=FALSE)
+  
+  ggplot(cCycle.S[!is.na(cCycle.S$SOIL.SIR.S),], aes(y=SOIL.SIR.S, x=LITTER.WT.S,
+                       color=SITE.ID)) + 
+    theme_classic() + geom_point(size=3) +
+    geom_line(aes(y = predict(S.sirLittWtIntFragLMM)), size = 1) +
+    ggtitle("(Litter weight * frag)") +
+    xlab("\n Litter weight") +
+    ylab("SIR \n") +
+    theme(plot.title = element_text(size=20),
+          legend.title=element_blank(),
+          legend.text = element_text(size = 15),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 20),
+          axis.text = element_text(size = 18)) +
+    scale_color_discrete(labels=as.character(soilNLittMeans$SITE.NAME))
+  #ggsave("figs/SIRvsLitterWt_FragInt_ModelFitPlots.png")
+                         
+                         
   S.sirLittPLMM    <- lmer(SOIL.SIR.S ~ LITTER.P.S + SITE.TYPE +
                                         (1|SITE.ID),
                            data=cCycle.S, REML=FALSE)
@@ -884,6 +1043,23 @@ library(ggplot2)
   S.sirBasAreaLMM <- lmer(SOIL.SIR.S ~ BAS.AREA.S + SITE.TYPE + 
                                        (1|SITE.ID),
                           data=cCycle.S, REML=FALSE)
+  
+  ggplot(cCycle.S[!is.na(cCycle.S$SOIL.SIR.S),], aes(y=SOIL.SIR.S, x=LITTER.WT.S,
+                                                     color=SITE.ID)) + 
+    theme_classic() + geom_point(size=3) +
+    geom_line(aes(y = predict(S.sirLittWtLMM)), size = 1) +
+    ggtitle("(Litter weight + frag)") +
+    xlab("\n Litter weight") +
+    ylab("SIR \n") +
+    theme(plot.title = element_text(size=20),
+          legend.title=element_blank(),
+          legend.text = element_text(size = 15),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.title = element_text(size = 20),
+          axis.text = element_text(size = 18)) +
+    scale_color_discrete(labels=as.character(soilNLittMeans$SITE.NAME))
+  #ggsave("figs/SIRvsLitterWt_FragNoInt_ModelFitPlots.png")
   
   summary(model.avg(S.sirLittCNLMM, S.sirLittCNIntFragLMM,
                     S.sirLittPLMM, S.sirLittPIntFragLMM,
