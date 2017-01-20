@@ -318,9 +318,10 @@ library(ggplot2)
           axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.title = element_text(size = 18),
+          axis.title.y = element_text(angle = 0, margin=margin(0,20,0,0)),
           axis.text = element_text(size = 18)) +
     scale_fill_grey(start=0.5)
-  #ggsave("figs/SoilC_CTvsFRCompare.png")
+  #ggsave("figs/SoilC_CTvsFRCompare_YlabFix.png")
   
   #####################################
   #            Figure 3               #
@@ -338,16 +339,17 @@ library(ggplot2)
                   position=position_dodge(0.9)) +
     scale_x_discrete(labels=
                        c("Contiguous forests \n (N = 6 sites)", "Fragmented forests \n (N = 6 sites)")) +
-    ylab("Soil SIR \n (micro gm C-CO2 \n per gm dry wt. soil per hr) \n") +
+    ylab(expression(atop("Soil SIR", (paste(mu, "gm C-", CO[2], " ", gm^{-1}, " ", hr^{-1}))))) +
     theme(legend.title=element_blank(),
           axis.title.x=element_blank(), 
           axis.ticks=element_blank(),
           axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.title = element_text(size = 18),
+          axis.title.y = element_text(angle = 0, margin=margin(0,20,0,0)),
           axis.text = element_text(size = 18)) +
     scale_fill_grey(start=0.5)
-  #ggsave("figs/SIR_CTvsFRCompare.png")
+  #ggsave("figs/SIR_CTvsFRCompare_YlabFix.png")
   
   #####################################
   #            Figure 4               #
@@ -362,10 +364,11 @@ library(ggplot2)
           axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.title = element_text(size = 18),
+          axis.title.y = element_text(angle = 0, margin=margin(0,20,0,0)),
           axis.text = element_text(size = 15),
           axis.text.x = element_text(angle=45, hjust=1)) +
     scale_fill_grey(labels=c("Contiguous", "Fragment"), start=0.5)
-  #ggsave("figs/SoilCvsSites.png")
+  #ggsave("figs/SoilCvsSites_YlabFix.png")
   
   #####################################
   #            Figure 5               #
@@ -374,17 +377,18 @@ library(ggplot2)
   ggplot(cCycle, aes(y=SOIL.SIR, x=SITE.ID, fill=SITE.TYPE)) +
     theme_classic() +
     geom_boxplot() +
-    ylab("Soil SIR \n (micro gm C-CO2 \n per gm dry wt. soil per hr) \n") +
+    ylab(expression(atop("Soil SIR", (paste(mu, "gm C-", CO[2], " ", gm^{-1}, " ", hr^{-1}))))) +
     xlab("\n Site ID") +
     theme(legend.title=element_blank(),
           legend.text = element_text(size = 15),
           axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.title = element_text(size = 18),
+          axis.title.y = element_text(angle = 0, margin=margin(0,20,0,0)),
           axis.text = element_text(size = 15),
           axis.text.x = element_text(angle=45, hjust=1)) +
     scale_fill_grey(labels=c("Contiguous", "Fragment"), start=0.5)
-  #ggsave("figs/SIRvsSites.png")
+  #ggsave("figs/SIRvsSites_YlabFix.png")
   
   #####################################
   #            Figure 6               #
@@ -403,16 +407,17 @@ library(ggplot2)
                   position=position_dodge(0.9)) +
     scale_x_discrete(labels=
                        c("Contiguous \n (N = 6 sites)", "Fragment \n (N = 6 sites)")) +    
-    ylab("Litter weight (gm per m.sq)\n") +
+    ylab(expression(atop("Litter weight", (paste(gm, " ", m^{-2}))))) +
     theme(legend.title=element_blank(),
           axis.title.x=element_blank(), 
           axis.ticks=element_blank(),
           axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.title = element_text(size = 24),
+          axis.title.y = element_text(angle = 0, margin=margin(0,20,0,0)),
           axis.text = element_text(size = 24)) +
     scale_fill_grey(start=0.5)
-  #ggsave("figs/LittWt_CTvsFRCompare.png")
+  #ggsave("figs/LittWt_CTvsFRCompare_YlabFix.png")
   
   littCNMeansPerSite <- cCycle %>% group_by(SITE.ID) %>% 
                         summarise(SITE.MEAN = mean(LITTER.CN.RATIO),
@@ -433,9 +438,10 @@ library(ggplot2)
           axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.title = element_text(size = 24),
+          axis.title.y = element_text(angle = 0, margin=margin(0,20,0,0)),
           axis.text = element_text(size = 24)) +
     scale_fill_grey(start=0.5)
-  #ggsave("figs/LittCN_CTvsFRCompare.png")
+  #ggsave("figs/LittCN_CTvsFRCompare_YlabFix.png")
   
   basAreaMeansPerSite <- cCycle %>% group_by(SITE.ID) %>% 
                          summarise(SITE.MEAN = mean(LITTER.CN.RATIO),
@@ -449,16 +455,17 @@ library(ggplot2)
                   position=position_dodge(0.9)) +
     scale_x_discrete(labels=
                        c("Contiguous \n (N = 6 sites)", "Fragment \n (N = 6 sites)")) +    
-    ylab("Basal area (m. sq. per ha) \n") +
+    ylab(expression(atop("Basal area", (paste(m^{2}, " ", ha^{-1}))))) +
     theme(legend.title=element_blank(),
           axis.title.x=element_blank(), 
           axis.ticks=element_blank(),
           axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.title = element_text(size = 24),
+          axis.title.y = element_text(angle = 0, margin=margin(0,20,0,0)),
           axis.text = element_text(size = 24)) +
     scale_fill_grey(start=0.5)
-  #ggsave("figs/BasArea_CTvsFRCompare.png")
+  #ggsave("figs/BasArea_CTvsFRCompare_YlabFix.png")
   
   littPMeansPerSite <- cCycle %>% group_by(SITE.ID) %>% 
                        summarise(SITE.MEAN = mean(LITTER.P),
@@ -479,9 +486,10 @@ library(ggplot2)
           axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.title = element_text(size = 24),
+          axis.title.y = element_text(angle = 0, margin=margin(0,20,0,0)),
           axis.text = element_text(size = 24)) +
     scale_fill_grey(start=0.5)
-  #ggsave("figs/LittP_CTvsFRCompare.png")
+  #ggsave("figs/LittP_CTvsFRCompare_YlabFix.png")
   
   #####################################
   #            Figure 7               #
@@ -507,7 +515,7 @@ library(ggplot2)
                              color=SITE.TYPE)) + 
     theme_classic() + geom_point(size=4) +
     geom_errorbarh(aes(xmin=LITTER.CN.MEAN-(LITTER.CN.SE),
-                       xmax=LITTER.CN.MEAN+(LITTER.CN.SE))) + 
+                       xmax=LITTER.CN.MEAN+(LITTER.CN.SE)), height = 0) + 
     geom_errorbar(aes(ymin=SOIL.C.MEAN-(SOIL.C.SE),
                       ymax=SOIL.C.MEAN+(SOIL.C.SE)), width=0) +
     xlab("\n Litter C/N") + ylab("Soil %C \n") +
@@ -517,15 +525,16 @@ library(ggplot2)
           axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.title = element_text(size = 20),
+          axis.title.y = element_text(angle = 0, margin=margin(0,20,0,0)),
           axis.text = element_text(size = 18)) +
     scale_color_grey(labels=c("Contiguous", "Fragment"))
-  #ggsave("figs/SoilCvsLitterCN_SiteAvgs.png")
+  #ggsave("figs/SoilCvsLitterCN_SiteAvgs_YlabFix.png")
   
   ggplot(soilNLittMeans, aes(y=SOIL.C.MEAN, x=LITTER.P.MEAN,
                              color=SITE.TYPE)) + 
     theme_classic() + geom_point(size=4) +
     geom_errorbarh(aes(xmin=LITTER.P.MEAN-(LITTER.P.SE),
-                       xmax=LITTER.P.MEAN+(LITTER.P.SE))) + 
+                       xmax=LITTER.P.MEAN+(LITTER.P.SE)), height = 0) + 
     geom_errorbar(aes(ymin=SOIL.C.MEAN-(SOIL.C.SE),
                       ymax=SOIL.C.MEAN+(SOIL.C.SE)), width=0) +
     xlab("\n Litter %P") + ylab("Soil %C \n") +
@@ -535,45 +544,52 @@ library(ggplot2)
           axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.title = element_text(size = 20),
+          axis.title.y = element_text(angle = 0, margin=margin(0,20,0,0)),
           axis.text = element_text(size = 18)) +
     scale_color_grey(labels=c("Contiguous", "Fragment"))
-  #ggsave("figs/SoilCvsLitterP_SiteAvgs.png")
+  #ggsave("figs/SoilCvsLitterP_SiteAvgs_YlabFix.png")
   
   ggplot(soilNLittMeans, aes(y=SOIL.C.MEAN, x=LITTER.WT.MEAN,
                              color=SITE.TYPE)) + 
     theme_classic() + geom_point(size=4) +
     geom_errorbarh(aes(xmin=LITTER.WT.MEAN-(LITTER.WT.SE),
-                       xmax=LITTER.WT.MEAN+(LITTER.WT.SE))) + 
+                       xmax=LITTER.WT.MEAN+(LITTER.WT.SE)), height = 0) + 
     geom_errorbar(aes(ymin=SOIL.C.MEAN-(SOIL.C.SE),
                       ymax=SOIL.C.MEAN+(SOIL.C.SE)), width=0) +
-    xlab("\n Litter weight (gm per m.sq)") + ylab("Soil %C \n") +
+    xlab(expression(atop("Litter weight", (paste(gm, " ", m^{-2}))))) +
+    ylab("Soil %C") +
     theme(legend.title=element_blank(),
           legend.text = element_text(size = 15),
           legend.position = c(0.85, 0.9),
           axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.title = element_text(size = 20),
+          axis.title.x = element_text(margin=margin(20,0,0,0)),
+          axis.title.y = element_text(angle = 0, margin=margin(0,20,0,0)),
           axis.text = element_text(size = 18)) +
     scale_color_grey(labels=c("Contiguous", "Fragment"))
-  #ggsave("figs/SoilCvsLitterWt_SiteAvgs.png")
+  #ggsave("figs/SoilCvsLitterWt_SiteAvgs_YlabFix.png")
   
   ggplot(soilNLittMeans, aes(y=SOIL.C.MEAN, x=BAS.AREA.MEAN,
                              color=SITE.TYPE)) + 
     theme_classic() + geom_point(size=4) +
     geom_errorbarh(aes(xmin=BAS.AREA.MEAN-(BAS.AREA.SE),
-                       xmax=BAS.AREA.MEAN+(BAS.AREA.SE))) + 
+                       xmax=BAS.AREA.MEAN+(BAS.AREA.SE)), height = 0) + 
     geom_errorbar(aes(ymin=SOIL.C.MEAN-(SOIL.C.SE),
                       ymax=SOIL.C.MEAN+(SOIL.C.SE)), width=0) +
-    xlab("\n Basal area (m sq. per ha)") + ylab("Soil %C \n") +
+    xlab(expression(atop("Basal area", (paste(m^{2}, " ", ha^{-1}))))) +
+    ylab("Soil %C") +
     theme(legend.title=element_blank(),
           legend.text = element_text(size = 15),
           legend.position = c(0.9, 0.9),
           axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.title = element_text(size = 20),
+          axis.title.x = element_text(margin=margin(20,0,0,0)),
+          axis.title.y = element_text(angle = 0, margin=margin(0,20,0,0)),
           axis.text = element_text(size = 18)) +
     scale_color_grey(labels=c("Contiguous", "Fragment"))
-  #ggsave("figs/SoilCvsBasArea_SiteAvgs.png")
+  #ggsave("figs/SoilCvsBasArea_SiteAvgs_YlabFix.png")
   
   #####################################
   #            Figure 8               #
@@ -587,16 +603,17 @@ library(ggplot2)
     geom_errorbar(aes(ymin=SIR.MEAN-(SIR.SE),
                       ymax=SIR.MEAN+(SIR.SE)), width=0) +
     xlab("\n Litter C/N") +
-    ylab("Soil SIR \n (micro gm C-CO2 \n per gm dry wt. soil per hr) \n") +
+    ylab(expression(atop("Soil SIR", (paste(mu, "gm C-", CO[2], " ", gm^{-1}, " ", hr^{-1}))))) +
     theme(legend.title=element_blank(),
           legend.text = element_text(size = 15),
           legend.position = c(0.85, 0.55),
           axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.title = element_text(size = 20),
+          axis.title.y = element_text(angle = 0, margin=margin(0,20,0,0)),
           axis.text = element_text(size = 18)) +
     scale_color_grey(labels=c("Contiguous", "Fragment"))
-  #ggsave("figs/SIRvsLitterCN_SiteAvgs.png")
+  #ggsave("figs/SIRvsLitterCN_SiteAvgs_YlabFix.png")
   
   ggplot(soilNLittMeans, aes(y=SIR.MEAN, x=LITTER.P.MEAN,
                              color=SITE.TYPE)) + 
@@ -606,16 +623,17 @@ library(ggplot2)
     geom_errorbar(aes(ymin=SIR.MEAN-(SIR.SE),
                       ymax=SIR.MEAN+(SIR.SE)), width=0) +
     xlab("\n Litter %P") +
-    ylab("Soil SIR \n (micro gm C-CO2 \n per gm dry wt. soil per hr) \n") +
+    ylab(expression(atop("Soil SIR", (paste(mu, "gm C-", CO[2], " ", gm^{-1}, " ", hr^{-1}))))) +
     theme(legend.title=element_blank(),
           legend.text = element_text(size = 15),
           legend.position = c(0.85, 0.25),
           axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.title = element_text(size = 20),
+          axis.title.y = element_text(angle = 0, margin=margin(0,20,0,0)),
           axis.text = element_text(size = 18)) +
     scale_color_grey(labels=c("Contiguous", "Fragment"))
-  #ggsave("figs/SIRvsLitterP_SiteAvgs.png")
+  #ggsave("figs/SIRvsLitterP_SiteAvgs_YlabFix.png")
   
   ggplot(soilNLittMeans, aes(y=SIR.MEAN, x=LITTER.WT.MEAN,
                              color=SITE.TYPE)) + 
@@ -624,17 +642,19 @@ library(ggplot2)
                        xmax=LITTER.WT.MEAN+(LITTER.WT.SE))) + 
     geom_errorbar(aes(ymin=SIR.MEAN-(SIR.SE),
                       ymax=SIR.MEAN+(SIR.SE)), width=0) +
-    xlab("\n Litter weight (gm per m.sq)") +
-    ylab("Soil SIR \n (micro gm C-CO2 \n per gm dry wt. soil per hr) \n") +
+    xlab(expression(atop("Litter weight", (paste(gm, " ", m^{-2}))))) +
+    ylab(expression(atop("Soil SIR", (paste(mu, "gm C-", CO[2], " ", gm^{-1}, " ", hr^{-1}))))) +
     theme(legend.title=element_blank(),
           legend.text = element_text(size = 15),
           legend.position = c(0.85, 0.9),
           axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.title = element_text(size = 20),
+          axis.title.x = element_text(margin=margin(20,0,0,0)),
+          axis.title.y = element_text(angle = 0, margin=margin(0,20,0,0)),
           axis.text = element_text(size = 18)) +
     scale_color_grey(labels=c("Contiguous", "Fragment"))
-  #ggsave("figs/SIRvsLitterWt_SiteAvgs.png")
+  #ggsave("figs/SIRvsLitterWt_SiteAvgs_YlabFix.png")
   
   ggplot(soilNLittMeans, aes(y=SIR.MEAN, x=BAS.AREA.MEAN,
                              color=SITE.TYPE)) + 
@@ -643,17 +663,19 @@ library(ggplot2)
                        xmax=BAS.AREA.MEAN+(BAS.AREA.SE))) + 
     geom_errorbar(aes(ymin=SIR.MEAN-(SIR.SE),
                       ymax=SIR.MEAN+(SIR.SE)), width=0) +
-    xlab("\n Basal area (m sq. per ha)") +
-    ylab("Soil SIR \n (micro gm C-CO2 \n per gm dry wt. soil per hr) \n") +
+    xlab(expression(atop("Basal area", (paste(m^{2}, " ", ha^{-1}))))) +
+    ylab(expression(atop("Soil SIR", (paste(mu, "gm C-", CO[2], " ", gm^{-1}, " ", hr^{-1}))))) +
     theme(legend.title=element_blank(),
           legend.text = element_text(size = 15),
           legend.position = c(0.85, 0.5),
           axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'),
           axis.title = element_text(size = 20),
+          axis.title.x = element_text(margin=margin(20,0,0,0)),
+          axis.title.y = element_text(angle = 0, margin=margin(0,20,0,0)),
           axis.text = element_text(size = 18)) +
     scale_color_grey(labels=c("Contiguous", "Fragment"))
-  #ggsave("figs/SIRvsBasArea_SiteAvgs.png")
+  #ggsave("figs/SIRvsBasArea_SiteAvgs_YlabFix.png")
   
   # Scaling variables to zero-mean and unit-std.dev
   cCycle.S <- data.frame(POINT = cCycle$POINT,
@@ -755,11 +777,12 @@ library(ggplot2)
           axis.line.x = element_line(colour='black',size=0.5,linetype='solid'),
           axis.line.y = element_line(colour='black',size=0.5,linetype='solid'),
           axis.title = element_text(size = 18),
+          axis.title.y = element_text(angle = 0, margin=margin(0,20,0,0)),
           axis.text = element_text(size = 18)) +
     scale_x_discrete(labels=
                        c("Community \n weighted-average", "Sample average")) +
     scale_fill_grey(labels=c("Contiguous", "Fragment"), start=0.5)
-  #ggsave("figs/LittQualCompare_CommVsSampleAvg.png")
+  #ggsave("figs/LittQualCompare_CommVsSampleAvg_YlabFix.png")
   
   #####################################
   #            Figure 10              #
@@ -786,17 +809,20 @@ library(ggplot2)
                               paste(binBounds[3]*100,binBounds[4]*100,sep=" - "),
                               paste(binBounds[4]*100,binBounds[5]*100,sep=" - "),
                               paste(binBounds[5]*100,binBounds[6]*100,sep=" - "))) +
-    xlab("\n DBH (cm) class") + ylab("Proportion of stems \n") + ylim(0,0.4) +
+    xlab("\n DBH (cm) class \n (Diameter at breast height)") + 
+    ylab("Proportion \n of stems") +
+    ylim(0,0.4) +
     theme(legend.position=c(0.85, 0.85),
           legend.title=element_blank(),
           legend.text = element_text(size = 15),
           axis.line.x = element_line(colour='black',size=0.5,linetype='solid'),
           axis.line.y = element_line(colour='black',size=0.5,linetype='solid'),
           axis.title = element_text(size = 18),
+          axis.title.y = element_text(angle = 0, margin=margin(0,20,0,0)),
           axis.text = element_text(size = 15)) +
     annotate("text", x = treeStemPropsMeans$SIZE.CLASS[9], 
              y = treeStemPropsMeans$MEAN[9] + (1.5*treeStemPropsMeans$SE[9]),
              label = "**", size=8) +
     scale_fill_grey(labels=c("Contiguous", "Fragment"), start=0.5)
-  #ggsave("figs/TreeSizeClassDistr_PropStems.png")
+  #ggsave("figs/TreeSizeClassDistr_PropStems_YlabFix.png")
 }
